@@ -29,7 +29,7 @@ import Data.Eq1 (class Eq1)
 import Data.Ord1 (class Ord1)
 
 import Data.Argonaut.Core as JS
-import Data.Argonaut.Encode (encodeJson)
+import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Combinators ((.?))
 
@@ -170,6 +170,15 @@ getEJson (EJson x) = x
 instance ejsonViewEJson ∷ EJsonView EJson where
   intoEJson = EJson <<< Mu.roll <<< map getEJson
   outEJson = getEJson >>> Mu.unroll >>> map EJson >>> E.Right
+
+instance showEJson ∷ Show EJson where
+  show = renderEJson
+
+instance decodeJsonEJson ∷ DecodeJson EJson where
+  decodeJson = decodeEJson
+
+instance encodeJsonEJson ∷ EncodeJson EJson where
+  encodeJson = encodeEJson
 
 -- | This is a _lossy_ encoding of EJSON to JSON; JSON only supports objects with strings
 -- as keys.
