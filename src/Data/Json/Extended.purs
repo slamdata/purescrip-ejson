@@ -7,7 +7,11 @@ module Data.Json.Extended
   , intoEJson
   , outEJson
 
+  , renderEJsonF
+  , renderEJson
+
   , encodeEJsonF
+  , encodeEJson
 
   , decodeEJsonF
   , decodeEJson
@@ -31,12 +35,14 @@ import Data.Argonaut.Combinators ((.?))
 
 import Data.Array as A
 import Data.Either as E
+import Data.Foldable as F
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.List as L
 import Data.Maybe as M
 import Data.StrMap as SM
+import Data.String.Regex as Rx
 import Data.Traversable as TR
 import Data.Tuple as T
 
@@ -362,4 +368,96 @@ arbitraryEJsonOfSize size =
     case size of
       0 → arbitraryBaseEJsonF
       n → arbitraryEJsonF $ arbitraryEJsonOfSize (n - 1)
+
+renderEJsonF
+  ∷ ∀ a
+  . (a → String)
+  → EJsonF a
+  → String
+renderEJsonF rec d =
+  case d of
+    Null → "null"
+    Boolean b → if b then "true" else "false"
+    Integer i → show i
+    Decimal a → HN.toString a
+    String str → stringEJson str
+    Timestamp str → tagged "TIMESTAMP" str
+    Time str → tagged "TIME" str
+    Date str → tagged "DATE" str
+    Interval str → tagged "INTERVAL" str
+    ObjectId str → tagged "OID" str
+    OrderedSet ds → parens $ commaSep ds
+    Array ds → squares $ commaSep ds
+    Object ds → braces $ renderPairs ds
+  where
+    tagged
+      ∷ String
+      → String
+      → String
+    tagged tag str =
+      tag <> parens (stringEJson str)
+
+    replaceAll
+      ∷ String
+      → String
+      → String
+      → String
+    replaceAll i =
+      Rx.replace $
+        Rx.regex i $
+          Rx.noFlags { global = true }
+
+    -- | Surround text in double quotes, escaping internal double quotes.
+    stringEJson
+      ∷ String
+      → String
+    stringEJson str =
+      "\"" <> replaceAll "\"" "\\\"" str <> "\""
+
+    commaSep
+      ∷ ∀ f
+      . (Functor f, F.Foldable f)
+      ⇒ f a
+      → String
+    commaSep =
+      F.intercalate "," <<<
+        map rec
+
+    renderPairs
+      ∷ Array (T.Tuple a a)
+      → String
+    renderPairs =
+      F.intercalate ", " <<<
+        map \(T.Tuple k v) →
+          rec k <> ": " <> rec v
+
+renderEJson
+  ∷ EJson
+  → String
+renderEJson (EJson x) =
+  renderEJsonF
+    renderEJson
+    (EJson <$> Mu.unroll x)
+
+
+hole ∷ ∀ a. a
+hole = Unsafe.Coerce.unsafeCoerce "a"
+
+parens
+  ∷ String
+  → String
+parens str =
+  "(" <> str <> ")"
+
+squares
+  ∷ String
+  → String
+squares str =
+  "[" <> str <> "]"
+
+braces
+  ∷ String
+  → String
+braces str =
+  "{" <> str <> "}"
 
