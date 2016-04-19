@@ -15,6 +15,7 @@ module Data.Json.Extended
 
 import Prelude
 
+import Data.Eq1 (eq1)
 import Data.Argonaut.Core as JS
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Argonaut.Decode (class DecodeJson)
@@ -39,6 +40,10 @@ getEJson (EJson x) = x
 instance ejsonViewEJson ∷ EJsonView EJson where
   intoEJson = EJson <<< Mu.roll <<< map getEJson
   outEJson = getEJson >>> Mu.unroll >>> map EJson >>> E.Right
+
+instance eqEJson ∷ Eq EJson where
+  eq (EJson a) (EJson b) =
+    eq1 (Mu.unroll a) (Mu.unroll b)
 
 instance showEJson ∷ Show EJson where
   show = renderEJson
