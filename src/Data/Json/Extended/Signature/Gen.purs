@@ -1,10 +1,12 @@
 module Data.Json.Extended.Signature.Gen
   ( arbitraryBaseEJsonF
   , arbitraryEJsonF
+  , arbitraryEJsonFWithKeyGen
   ) where
 
 import Prelude
 
+import Data.Array as A
 import Data.Json.Extended.Signature.Core (EJsonF(..))
 import Data.Tuple as T
 import Data.HugeNum as HN
@@ -27,24 +29,46 @@ arbitraryBaseEJsonF =
     , pure Null
     ]
 
-arbitraryEJsonF
+arbitraryEJsonFWithKeyGen
   ∷ ∀ a
-  . Gen.Gen a
+  . (Eq a)
+  ⇒ Gen.Gen a
+  → Gen.Gen a
   → Gen.Gen (EJsonF a)
-arbitraryEJsonF rec =
+arbitraryEJsonFWithKeyGen keyGen rec =
   Gen.oneOf (pure Null)
     [ arbitraryBaseEJsonF
     , OrderedSet <$> Gen.arrayOf rec
     , Array <$> Gen.arrayOf rec
-    , Object <$> Gen.arrayOf arbitraryTuple
+    , Object <$> do
+        keys ← distinctArrayOf keyGen
+        vals ← Gen.vectorOf (A.length keys) rec
+        pure $ A.zip keys vals
     ]
 
   where
     arbitraryTuple ∷ Gen.Gen (T.Tuple a a)
     arbitraryTuple =
       T.Tuple
-        <$> rec
+        <$> keyGen
         <*> rec
+
+arbitraryEJsonF
+  ∷ ∀ a
+  . (Eq a)
+  ⇒ Gen.Gen a
+  → Gen.Gen (EJsonF a)
+arbitraryEJsonF rec =
+  arbitraryEJsonFWithKeyGen rec rec
+
+distinctArrayOf
+  ∷ ∀ a
+  . (Eq a)
+  ⇒ Gen.Gen a
+  → Gen.Gen (Array a)
+distinctArrayOf =
+  map A.nub
+    <<< Gen.arrayOf
 
 arbitraryDecimal ∷ Gen.Gen HN.HugeNum
 arbitraryDecimal =

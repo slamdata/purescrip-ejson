@@ -11,6 +11,7 @@ module Data.Json.Extended
   , renderEJson
 
   , arbitraryEJsonOfSize
+  , arbitraryJsonEncodableEJsonOfSize
   ) where
 
 import Prelude
@@ -24,6 +25,7 @@ import Data.Either as E
 import Data.Functor.Mu as Mu
 import Data.Maybe as M
 
+import Test.StrongCheck as SC
 import Test.StrongCheck.Gen as Gen
 
 import Data.Json.Extended.Signature as Sig
@@ -88,7 +90,7 @@ decodeJsonEJson x =
 
 arbitraryEJsonOfSize
   ∷ ∀ a
-  . (EJsonView a)
+  . (Eq a, EJsonView a)
   ⇒ Gen.Size
   → Gen.Gen a
 arbitraryEJsonOfSize size =
@@ -96,6 +98,23 @@ arbitraryEJsonOfSize size =
     case size of
       0 → Sig.arbitraryBaseEJsonF
       n → Sig.arbitraryEJsonF $ arbitraryEJsonOfSize (n - 1)
+
+-- | Generate only JSON-encodable objects
+arbitraryJsonEncodableEJsonOfSize
+  ∷ ∀ a
+  . (Eq a, EJsonView a)
+  ⇒ Gen.Size
+  → Gen.Gen a
+arbitraryJsonEncodableEJsonOfSize size =
+  intoEJson <$>
+    case size of
+      0 → Sig.arbitraryBaseEJsonF
+      n → Sig.arbitraryEJsonFWithKeyGen keyGen $ arbitraryJsonEncodableEJsonOfSize (n - 1)
+
+  where
+    keyGen =
+      intoEJson <<< Sig.String <$>
+        SC.arbitrary
 
 renderEJson
   ∷ EJson
