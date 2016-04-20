@@ -73,5 +73,4 @@ distinctArrayOf =
 arbitraryDecimal ∷ Gen.Gen HN.HugeNum
 arbitraryDecimal =
   HN.fromNumber
-    <<< Data.Int.toNumber
     <$> SC.arbitrary
