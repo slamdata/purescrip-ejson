@@ -84,7 +84,7 @@ instance showEJson ∷ Show EJson where
 
 instance decodeJsonEJson ∷ DecodeJson EJson where
   decodeJson json =
-    map roll $
+    roll <$>
       Sig.decodeJsonEJsonF
         decodeJson
         (Sig.String >>> roll)
