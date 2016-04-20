@@ -3,10 +3,8 @@ module Data.Json.Extended
 
   , EJson(..)
   , getEJson
-
-  , class EJsonView
-  , intoEJson
-  , outEJson
+  , roll
+  , unroll
 
   , renderEJson
 
@@ -17,11 +15,9 @@ module Data.Json.Extended
 import Prelude
 
 import Data.Eq1 (eq1)
-import Data.Argonaut.Core as JS
-import Data.Argonaut.Encode (class EncodeJson)
-import Data.Argonaut.Decode (class DecodeJson)
+import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 
-import Data.Either as E
 import Data.Functor.Mu as Mu
 import Data.Maybe as M
 
@@ -30,18 +26,29 @@ import Test.StrongCheck.Gen as Gen
 
 import Data.Json.Extended.Signature as Sig
 
-class EJsonView a where
-  intoEJson ∷ Sig.EJsonF a → a
-  outEJson ∷ a → E.Either a (Sig.EJsonF a)
-
 newtype EJson = EJson (Mu.Mu Sig.EJsonF)
 
-getEJson ∷ EJson → Mu.Mu Sig.EJsonF
-getEJson (EJson x) = x
+getEJson
+  ∷ EJson
+  → Mu.Mu Sig.EJsonF
+getEJson (EJson x) =
+  x
 
-instance ejsonViewEJson ∷ EJsonView EJson where
-  intoEJson = EJson <<< Mu.roll <<< map getEJson
-  outEJson = getEJson >>> Mu.unroll >>> map EJson >>> E.Right
+roll
+  ∷ Sig.EJsonF EJson
+  → EJson
+roll =
+  EJson
+    <<< Mu.roll
+    <<< map getEJson
+
+unroll
+  ∷ EJson
+  → Sig.EJsonF EJson
+unroll =
+  getEJson
+    >>> Mu.unroll
+    >>> map EJson
 
 instance eqEJson ∷ Eq EJson where
   eq (EJson a) (EJson b) =
@@ -50,70 +57,54 @@ instance eqEJson ∷ Eq EJson where
 instance showEJson ∷ Show EJson where
   show = renderEJson
 
-instance _decodeJsonEJson ∷ DecodeJson EJson where
-  decodeJson = decodeJsonEJson
-
-instance _encodeJsonEJson ∷ EncodeJson EJson where
-  encodeJson = encodeJsonEJson
+instance decodeJsonEJson ∷ DecodeJson EJson where
+  decodeJson json =
+    map roll $
+      Sig.decodeJsonEJsonF
+        decodeJson
+        (Sig.String >>> roll)
+        json
 
 -- | This is a _lossy_ encoding of EJSON to JSON; JSON only supports objects with strings
 -- as keys.
-encodeJsonEJson
-  ∷ EJson
-  → JS.Json
-encodeJsonEJson (EJson x) =
-  Sig.encodeJsonEJsonF
-    encodeJsonEJson
-    asKey
-    (EJson <$> Mu.unroll x)
+instance encodeJsonEJson ∷ EncodeJson EJson where
+  encodeJson (EJson x) =
+    Sig.encodeJsonEJsonF
+      encodeJson
+      asKey
+      (EJson <$> Mu.unroll x)
 
-  where
-    asKey
-      ∷ EJson
-      → M.Maybe String
-    asKey (EJson x) =
-      case Mu.unroll x of
-        Sig.String k → pure k
-        _ → M.Nothing
+    where
+      asKey
+        ∷ EJson
+        → M.Maybe String
+      asKey (EJson x) =
+        case Mu.unroll x of
+          Sig.String k → pure k
+          _ → M.Nothing
 
-decodeJsonEJson
-  ∷ ∀ a
-  . (EJsonView a)
-  ⇒ JS.Json
-  → E.Either String a
-decodeJsonEJson x =
-  map intoEJson $
-    Sig.decodeJsonEJsonF
-      decodeJsonEJson
-      (Sig.String >>> intoEJson)
-      x
 
 arbitraryEJsonOfSize
-  ∷ ∀ a
-  . (Eq a, EJsonView a)
-  ⇒ Gen.Size
-  → Gen.Gen a
+  ∷ Gen.Size
+  → Gen.Gen EJson
 arbitraryEJsonOfSize size =
-  intoEJson <$>
+  roll <$>
     case size of
       0 → Sig.arbitraryBaseEJsonF
       n → Sig.arbitraryEJsonF $ arbitraryEJsonOfSize (n - 1)
 
 -- | Generate only JSON-encodable objects
 arbitraryJsonEncodableEJsonOfSize
-  ∷ ∀ a
-  . (Eq a, EJsonView a)
-  ⇒ Gen.Size
-  → Gen.Gen a
+  ∷ Gen.Size
+  → Gen.Gen EJson
 arbitraryJsonEncodableEJsonOfSize size =
-  intoEJson <$>
+  roll <$>
     case size of
       0 → Sig.arbitraryBaseEJsonF
       n → Sig.arbitraryEJsonFWithKeyGen keyGen $ arbitraryJsonEncodableEJsonOfSize (n - 1)
-
   where
     keyGen =
-      intoEJson <<< Sig.String <$>
+      roll <<< Sig.String <$>
         SC.arbitrary
 
 renderEJson
