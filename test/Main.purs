@@ -30,6 +30,3 @@ main = do
     case decodeJson (encodeJson x) of
       E.Right y → x == y SC.<?> "Mismatch:\n" <> show x <> "\n" <> show y
       E.Left err → SC.Failed $ "Parse error: " <> err
-
-hole ∷ ∀ a. a
-hole = Unsafe.Coerce.unsafeCoerce "a"
