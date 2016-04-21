@@ -13,6 +13,7 @@ import Data.Int as Int
 import Data.List as L
 import Data.Map as Map
 import Data.Tuple as T
+import Data.Bifunctor as BF
 
 -- | The signature endofunctor for the EJson theory.
 data EJsonF a
@@ -46,10 +47,7 @@ instance functorEJsonF ∷ Functor EJsonF where
       ObjectId oid → ObjectId oid
       Array xs → Array $ f <$> xs
       OrderedSet xs → OrderedSet $ f <$> xs
-      Object xs → Object $ bimapTuple f <$> xs
-    where
-      bimapTuple f (T.Tuple a b) =
-        T.Tuple (f a) (f b)
+      Object xs → Object $ BF.bimap f f <$> xs
 
 instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 Null Null = true
