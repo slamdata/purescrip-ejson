@@ -54,8 +54,8 @@ instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 (Boolean b1) (Boolean b2) = b1 == b2
   eq1 (Integer i) (Integer j) = i == j
   eq1 (Decimal a) (Decimal b) = a == b
-  eq1 (Integer i) (Decimal b) = HN.fromNumber (Int.toNumber i) == b
-  eq1 (Decimal a) (Integer j) = a == HN.fromNumber (Int.toNumber j)
+  eq1 (Integer i) (Decimal b) = intToHugeNum i == b
+  eq1 (Decimal a) (Integer j) = a == intToHugeNum j
   eq1 (String a) (String b) = a == b
   eq1 (Timestamp a) (Timestamp b) = a == b
   eq1 (Date a) (Date b) = a == b
@@ -87,6 +87,13 @@ isSubobject xs ys =
     true
     xs
 
+intToHugeNum
+  ∷ Int
+  → HN.HugeNum
+intToHugeNum =
+  HN.fromNumber
+    <<< Int.toNumber
+
 instance ord1EJsonF ∷ Ord1 EJsonF where
   compare1 Null Null = EQ
   compare1 _ Null = GT
@@ -97,8 +104,8 @@ instance ord1EJsonF ∷ Ord1 EJsonF where
   compare1 (Boolean _) _ = LT
 
   compare1 (Integer i) (Integer j) = compare i j
-  compare1 (Integer i) (Decimal b) = compare (HN.fromNumber (Int.toNumber i)) b
-  compare1 (Decimal a) (Integer j) = compare a (HN.fromNumber (Int.toNumber j))
+  compare1 (Integer i) (Decimal b) = compare (intToHugeNum i) b
+  compare1 (Decimal a) (Integer j) = compare a (intToHugeNum j)
   compare1 _ (Integer _) = GT
   compare1 (Integer _) _ = LT
 
