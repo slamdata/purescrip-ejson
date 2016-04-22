@@ -13,6 +13,7 @@ import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.List as L
+import Data.Maybe as M
 import Data.String as S
 import Data.Tuple as T
 
@@ -193,16 +194,16 @@ parseExponent =
   (PS.string "e" <|> PS.string "E")
     *> parseInt
 
-parsePositiveDecimal
+parsePositiveScientific
   ∷ ∀ m
   . (Monad m)
   ⇒ P.ParserT String m HN.HugeNum
-parsePositiveDecimal = do
+parsePositiveScientific = do
   let ten = HN.fromNumber 10.0
   lhs ← PC.try $ fromInt <$> parseNat <* PS.string "."
   rhs ← A.many parseDigit <#> F.foldr (\d f → divNum (f + fromInt d) ten) zero
-  exp ← PC.option 0 parseExponent
-  pure $ (lhs + rhs) * HN.pow ten exp
+  exp ← parseExponent
+  pure $ (lhs + rhs) * safePow ten exp
 
   where
     fromInt = HN.fromNumber <<< Int.toNumber
@@ -212,12 +213,34 @@ parsePositiveDecimal = do
       HN.fromNumber $
         HN.toNumber a / HN.toNumber b
 
+    -- To work around: https://github.com/Thimoteus/purescript-hugenums/issues/6
+    safePow a 0 = one
+    safePow a n = HN.pow a n
+
+parseHugeNum
+  ∷ ∀ m
+  . (Monad m)
+  ⇒ P.ParserT String m HN.HugeNum
+parseHugeNum = do
+  chars ← A.many (PS.oneOf ['0','1','2','3','4','5','6','7','8','9','-','.']) <#> S.fromCharArray
+  case HN.fromString chars of
+    M.Just num → pure num
+    M.Nothing → P.fail $ "Failed to parse decimal: " <> chars
+
+parseScientific
+  ∷ ∀ m
+  . (Monad m)
+  ⇒ P.ParserT String m HN.HugeNum
+parseScientific =
+  parseSigned parsePositiveScientific
+
 parseDecimal
   ∷ ∀ m
   . (Monad m)
   ⇒ P.ParserT String m HN.HugeNum
 parseDecimal =
-  parseSigned parsePositiveDecimal
+  parseHugeNum
+    <|> parseScientific
 
 -- | Parse one layer of structure.
 parseEJsonF
@@ -229,8 +252,8 @@ parseEJsonF rec =
   PC.choice $
     [ Null <$ PS.string "null"
     , Boolean <$> parseBoolean
+    , Decimal <$> PC.try parseDecimal
     , Integer <$> parseInt
-    , Decimal <$> parseDecimal
     , String <$> stringLiteral
     , Timestamp <$> taggedLiteral "TIMESTAMP"
     , Time <$> taggedLiteral "TIME"
