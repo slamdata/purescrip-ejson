@@ -22,12 +22,15 @@ module Data.Json.Extended
   , array
 
   , renderEJson
+  , parseEJson
 
   , arbitraryEJsonOfSize
   , arbitraryJsonEncodableEJsonOfSize
   ) where
 
 import Prelude
+
+import Control.Lazy as Lazy
 
 import Data.Eq1 (eq1)
 import Data.Ord1 (compare1)
@@ -44,6 +47,8 @@ import Data.Tuple as T
 
 import Test.StrongCheck as SC
 import Test.StrongCheck.Gen as Gen
+
+import Text.Parsing.Parser as P
 
 import Data.Json.Extended.Signature as Sig
 
@@ -139,6 +144,17 @@ renderEJson (EJson x) =
   Sig.renderEJsonF
     renderEJson
     (EJson <$> Mu.unroll x)
+
+-- | A closed parser of SQL^2 constant expressions
+parseEJson
+  ∷ forall m
+  . (Monad m)
+  ⇒ P.ParserT String m EJson
+parseEJson =
+  Lazy.fix \f →
+    roll <$>
+      Sig.parseEJsonF f
+
 
 null ∷ EJson
 null = roll Sig.Null
