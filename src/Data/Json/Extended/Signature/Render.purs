@@ -28,7 +28,6 @@ renderEJsonF rec d =
     Date str → tagged "DATE" str
     Interval str → tagged "INTERVAL" str
     ObjectId str → tagged "OID" str
-    OrderedSet ds → parens $ commaSep ds
     Array ds → squares $ commaSep ds
     Object ds → braces $ renderPairs ds
   where

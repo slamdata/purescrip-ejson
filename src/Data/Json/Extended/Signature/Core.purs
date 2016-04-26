@@ -29,7 +29,6 @@ data EJsonF a
   | Interval String
   | ObjectId String
   | Array (Array a)
-  | OrderedSet (Array a)
   | Object (Array (T.Tuple a a))
 
 instance functorEJsonF ∷ Functor EJsonF where
@@ -46,7 +45,6 @@ instance functorEJsonF ∷ Functor EJsonF where
       Interval i → Interval i
       ObjectId oid → ObjectId oid
       Array xs → Array $ f <$> xs
-      OrderedSet xs → OrderedSet $ f <$> xs
       Object xs → Object $ BF.bimap f f <$> xs
 
 instance eq1EJsonF ∷ Eq1 EJsonF where
@@ -62,7 +60,6 @@ instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 (Time a) (Time b) = a == b
   eq1 (Interval a) (Interval b) = a == b
   eq1 (ObjectId a) (ObjectId b) = a == b
-  eq1 (OrderedSet xs) (OrderedSet ys) = xs == ys
   eq1 (Array xs) (Array ys) = xs == ys
   eq1 (Object xs) (Object ys) =
     let
@@ -136,10 +133,6 @@ instance ord1EJsonF ∷ Ord1 EJsonF where
   compare1 (ObjectId a) (ObjectId b) = compare a b
   compare1 _ (ObjectId _) = GT
   compare1 (ObjectId _) _ = LT
-
-  compare1 (OrderedSet a) (OrderedSet b) = compare a b
-  compare1 _ (OrderedSet _) = GT
-  compare1 (OrderedSet _) _ = LT
 
   compare1 (Array a) (Array b) = compare a b
   compare1 _ (Array _) = GT

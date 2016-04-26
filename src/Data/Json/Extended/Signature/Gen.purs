@@ -38,7 +38,6 @@ arbitraryEJsonFWithKeyGen
 arbitraryEJsonFWithKeyGen keyGen rec =
   Gen.oneOf (pure Null)
     [ arbitraryBaseEJsonF
-    , OrderedSet <$> Gen.arrayOf rec
     , Array <$> Gen.arrayOf rec
     , Object <$> do
         keys ← distinctArrayOf keyGen

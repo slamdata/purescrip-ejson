@@ -41,7 +41,6 @@ encodeJsonEJsonF rec asKey x =
     Date str → JS.jsonSingletonObject "$date" $ encodeJson str
     Interval str → JS.jsonSingletonObject "$interval" $ encodeJson str
     ObjectId str → JS.jsonSingletonObject "$oid" $ encodeJson str
-    OrderedSet xs → JS.jsonSingletonObject "$set" $ encodeJson $ rec <$> xs
     Array xs → encodeJson $ rec <$> xs
     Object xs → JS.jsonSingletonObject "$obj" $ encodeJson $ asStrMap xs
       where
@@ -133,7 +132,6 @@ decodeJsonEJsonF rec makeKey =
       → E.Either String (EJsonF a)
     decodeObject obj =
       unwrapBranch "$obj" strMapObject obj
-        <|> unwrapBranch "$set" OrderedSet obj
         <|> unwrapLeaf "$timestamp" Timestamp obj
         <|> unwrapLeaf "$date" Date obj
         <|> unwrapLeaf "$time" Time obj
