@@ -16,7 +16,6 @@ module Data.Json.Extended
   , time
   , interval
   , objectId
-  , orderedSet
   , object
   , object'
   , array
@@ -185,9 +184,6 @@ interval = roll <<< Sig.Interval
 
 objectId ∷ String → EJson
 objectId = roll <<< Sig.ObjectId
-
-orderedSet ∷ Array EJson → EJson
-orderedSet = roll <<< Sig.OrderedSet
 
 array ∷ Array EJson → EJson
 array = roll <<< Sig.Array

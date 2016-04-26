@@ -260,7 +260,6 @@ parseEJsonF rec =
     , Date <$> taggedLiteral "DATE"
     , Interval <$> taggedLiteral "INTERVAL"
     , ObjectId <$> taggedLiteral "OID"
-    , OrderedSet <<< L.fromList <$> parens (commaSep rec)
     , Array <<< L.fromList <$> squares (commaSep rec)
     , Object <<< L.fromList <$> braces (commaSep parseAssignment)
     ]
