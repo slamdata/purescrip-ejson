@@ -31,25 +31,21 @@ import Prelude
 
 import Control.Lazy as Lazy
 
-import Data.Eq1 (eq1)
-import Data.Ord1 (compare1)
-import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
-
+import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Array as A
+import Data.Eq1 (eq1)
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
-import Data.List as L
+import Data.Json.Extended.Signature as Sig
 import Data.Map as Map
 import Data.Maybe as M
+import Data.Ord1 (compare1)
 import Data.StrMap as SM
 import Data.Tuple as T
-
-import Test.StrongCheck as SC
+import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
-
 import Text.Parsing.Parser as P
-
-import Data.Json.Extended.Signature as Sig
 
 newtype EJson = EJson (Mu.Mu Sig.EJsonF)
 
@@ -189,9 +185,9 @@ array ∷ Array EJson → EJson
 array = roll <<< Sig.Array
 
 object ∷ Map.Map EJson EJson → EJson
-object = roll <<< Sig.Object <<< L.fromList <<< Map.toList
+object = roll <<< Sig.Object <<< A.fromFoldable <<< Map.toList
 
 object' ∷ SM.StrMap EJson → EJson
-object' = roll <<< Sig.Object <<< map go <<< L.fromList <<< SM.toList
+object' = roll <<< Sig.Object <<< map go <<< A.fromFoldable <<< SM.toList
   where
     go (T.Tuple a b) = T.Tuple (string a) b

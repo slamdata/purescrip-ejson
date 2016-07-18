@@ -4,12 +4,13 @@ module Data.Json.Extended.Signature.Render
 
 import Prelude
 
+import Data.Either (fromRight)
 import Data.Foldable as F
 import Data.HugeNum as HN
+import Data.Json.Extended.Signature.Core (EJsonF(..))
 import Data.String.Regex as Rx
 import Data.Tuple as T
-
-import Data.Json.Extended.Signature.Core (EJsonF(..))
+import Partial.Unsafe (unsafePartial)
 
 renderEJsonF
   ∷ ∀ a
@@ -45,8 +46,9 @@ renderEJsonF rec d =
       → String
     replaceAll i =
       Rx.replace $
-        Rx.regex i $
-          Rx.noFlags { global = true }
+        unsafePartial fromRight $
+          Rx.regex i $
+            Rx.noFlags { global = true }
 
     -- | Surround text in double quotes, escaping internal double quotes.
     stringEJson
@@ -89,4 +91,3 @@ braces
   → String
 braces str =
   "{" <> str <> "}"
-

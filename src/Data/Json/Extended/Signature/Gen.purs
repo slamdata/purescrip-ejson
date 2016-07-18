@@ -11,7 +11,7 @@ import Data.Json.Extended.Signature.Core (EJsonF(..))
 import Data.Tuple as T
 import Data.HugeNum as HN
 
-import Test.StrongCheck as SC
+import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
 
 arbitraryBaseEJsonF ∷ ∀ a. Gen.Gen (EJsonF a)

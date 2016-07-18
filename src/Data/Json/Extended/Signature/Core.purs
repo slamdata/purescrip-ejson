@@ -4,16 +4,15 @@ module Data.Json.Extended.Signature.Core
 
 import Prelude
 
+import Data.Bifunctor as BF
 import Data.Eq1 (class Eq1)
-import Data.Ord1 (class Ord1)
-
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.List as L
 import Data.Map as Map
+import Data.Ord1 (class Ord1)
 import Data.Tuple as T
-import Data.Bifunctor as BF
 
 -- | The signature endofunctor for the EJson theory.
 data EJsonF a
@@ -63,8 +62,8 @@ instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 (Array xs) (Array ys) = xs == ys
   eq1 (Object xs) (Object ys) =
     let
-      xs' = L.toList xs
-      ys' = L.toList ys
+      xs' = L.fromFoldable xs
+      ys' = L.fromFoldable ys
     in
       isSubobject xs' ys'
         && isSubobject ys' xs'
@@ -145,7 +144,4 @@ pairsToObject
   . (Ord a)
   ⇒ Array (T.Tuple a b)
   → Map.Map a b
-pairsToObject =
-  Map.fromList
-    <<< L.toList
-
+pairsToObject = Map.fromFoldable

@@ -5,19 +5,16 @@ module Data.Json.Extended.Signature.Parse
 import Prelude
 
 import Control.Alt ((<|>))
-import Control.Apply ((*>), (<*))
-import Data.Functor ((<$), ($>))
 
 import Data.Array as A
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Int as Int
+import Data.Json.Extended.Signature.Core (EJsonF(..))
 import Data.List as L
 import Data.Maybe as M
 import Data.String as S
 import Data.Tuple as T
-
-import Data.Json.Extended.Signature.Core (EJsonF(..))
 
 import Text.Parsing.Parser as P
 import Text.Parsing.Parser.Combinators as PC
@@ -260,8 +257,8 @@ parseEJsonF rec =
     , Date <$> taggedLiteral "DATE"
     , Interval <$> taggedLiteral "INTERVAL"
     , ObjectId <$> taggedLiteral "OID"
-    , Array <<< L.fromList <$> squares (commaSep rec)
-    , Object <<< L.fromList <$> braces (commaSep parseAssignment)
+    , Array <<< A.fromFoldable <$> squares (commaSep rec)
+    , Object <<< A.fromFoldable <$> braces (commaSep parseAssignment)
     ]
 
   where
@@ -276,4 +273,3 @@ parseEJsonF rec =
       T.Tuple
         <$> rec <* parseColon
         <*> rec
-
