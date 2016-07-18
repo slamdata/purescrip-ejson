@@ -14,6 +14,7 @@ import Data.Json.Extended (EJson, arbitraryJsonEncodableEJsonOfSize, arbitraryEJ
 import Text.Parsing.Parser as P
 
 import Test.StrongCheck as SC
+import Test.StrongCheck.Arbitrary as SCA
 
 type TestEffects =
   ( err ∷ EXCEPTION
@@ -24,10 +25,10 @@ type TestEffects =
 newtype ArbJsonEncodableEJson = ArbJsonEncodableEJson EJson
 newtype ArbEJson = ArbEJson EJson
 
-instance arbitraryArbJsonEncodableEJson ∷ SC.Arbitrary ArbJsonEncodableEJson where
+instance arbitraryArbJsonEncodableEJson ∷ SCA.Arbitrary ArbJsonEncodableEJson where
   arbitrary = ArbJsonEncodableEJson <$> arbitraryJsonEncodableEJsonOfSize 2
 
-instance arbitraryArbEJson ∷ SC.Arbitrary ArbEJson where
+instance arbitraryArbEJson ∷ SCA.Arbitrary ArbEJson where
   arbitrary = ArbEJson <$> arbitraryEJsonOfSize 2
 
 testJsonSerialization ∷ Eff TestEffects Unit

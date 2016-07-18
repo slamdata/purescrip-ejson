@@ -3,25 +3,19 @@ module Data.Json.Extended.Signature.Json where
 import Prelude
 
 import Control.Alt ((<|>))
-import Control.Bind ((>=>))
 
 import Data.Argonaut.Core as JS
+import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Encode (encodeJson)
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
-import Data.Argonaut.Combinators ((.?))
-
 import Data.Array as A
 import Data.Either as E
 import Data.HugeNum as HN
 import Data.Int as Int
-import Data.List as L
+import Data.Json.Extended.Signature.Core (EJsonF(..))
 import Data.Maybe as M
 import Data.StrMap as SM
 import Data.Traversable as TR
 import Data.Tuple as T
-
-import Data.Json.Extended.Signature.Core (EJsonF(..))
-
 
 encodeJsonEJsonF
   ∷ ∀ a
@@ -56,8 +50,7 @@ encodeJsonEJsonF rec asKey x =
           ∷ Array (T.Tuple a a)
           → SM.StrMap JS.Json
         asStrMap =
-          SM.fromList
-            <<< L.toList
+          SM.fromFoldable
             <<< A.mapMaybe tuple
 
 decodeJsonEJsonF
@@ -145,7 +138,6 @@ decodeJsonEJsonF rec makeKey =
       → EJsonF a
     strMapObject =
       Object
-        <<< L.fromList
+        <<< A.fromFoldable
         <<< map (\(T.Tuple k v) → T.Tuple (makeKey k) v)
         <<< SM.toList
-
