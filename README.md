@@ -1,8 +1,7 @@
 # purescript-ejson
 
-[![Latest release](http://img.shields.io/bower/v/purescript-ejson.svg)](https://github.com/slamdata/purescript-ejson/releases)
-[![Build Status](https://travis-ci.org/slamdata/purescript-ejson.svg?branch=master)](https://travis-ci.org/slamdata/purescript-ejson)
-[![Dependency Status](https://www.versioneye.com/user/projects/578d451f3e6a8b00457f8efe/badge.svg?style=flat)](https://www.versioneye.com/user/projects/578d451f3e6a8b00457f8efe)
+[![Latest release](http://img.shields.io/github/release/slamdata/purescript-ejson.svg)](https://github.com/slamdata/purescript-ejson/releases)
+[![Build status](https://travis-ci.org/slamdata/purescript-ejson.svg?branch=master)](https://travis-ci.org/slamdata/purescript-ejson)
 
 EJSON data representation, as used by [Quasar](https://github.com/quasar-analytics/quasar).
 
