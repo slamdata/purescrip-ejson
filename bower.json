@@ -15,13 +15,13 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-argonaut-codecs": "^1.0.0",
-    "purescript-argonaut-core": "^1.0.0",
-    "purescript-bifunctors": "^1.0.0",
-    "purescript-fixed-points": "^1.0.0",
-    "purescript-hugenums": "^2.0.0",
-    "purescript-maps": "^1.0.0",
-    "purescript-parsing": "^1.0.0",
-    "purescript-strongcheck": "^1.0.0"
+    "purescript-argonaut-codecs": "^2.0.0",
+    "purescript-argonaut-core": "^2.0.1",
+    "purescript-bifunctors": "^2.0.0",
+    "purescript-fixed-points": "^2.0.0",
+    "purescript-maps": "^2.0.0",
+    "purescript-parsing": "^3.0.0",
+    "purescript-precise": "^1.0.0",
+    "purescript-strongcheck": "^2.0.0"
   }
 }

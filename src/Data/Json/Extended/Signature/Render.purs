@@ -8,7 +8,8 @@ import Data.Either (fromRight)
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature.Core (EJsonF(..))
-import Data.String.Regex as Rx
+import Data.String.Regex as RX
+import Data.String.Regex.Flags as RXF
 import Data.Tuple as T
 import Partial.Unsafe (unsafePartial)
 
@@ -45,10 +46,7 @@ renderEJsonF rec d =
       → String
       → String
     replaceAll i =
-      Rx.replace $
-        unsafePartial fromRight $
-          Rx.regex i $
-            Rx.noFlags { global = true }
+      RX.replace $ unsafePartial fromRight $ RX.regex i RXF.global
 
     -- | Surround text in double quotes, escaping internal double quotes.
     stringEJson
