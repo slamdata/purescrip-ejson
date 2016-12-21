@@ -21,7 +21,6 @@ data EJsonF a
   | Boolean Boolean
   | Integer Int
   | Decimal HN.HugeNum
-  | String String
   | Timestamp String
   | Date String
   | Time String
