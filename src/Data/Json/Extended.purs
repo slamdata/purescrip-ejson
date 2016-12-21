@@ -103,8 +103,8 @@ instance encodeJsonEJson ∷ EncodeJson EJson where
       asKey
         ∷ EJson
         → M.Maybe String
-      asKey (EJson x) =
-        case Mu.unroll x of
+      asKey (EJson y) =
+        case Mu.unroll y of
           Sig.String k → pure k
           _ → M.Nothing
 
