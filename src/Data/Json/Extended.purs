@@ -5,6 +5,7 @@ module Data.Json.Extended
   , getEJson
   , roll
   , unroll
+  , head
 
   , null
   , boolean
@@ -70,6 +71,9 @@ unroll =
   getEJson
     >>> Mu.unroll
     >>> map EJson
+
+head ∷ EJson → Sig.EJsonF (Mu.Mu Sig.EJsonF)
+head = Mu.unroll <<< getEJson
 
 instance eqEJson ∷ Eq EJson where
   eq (EJson a) (EJson b) =
