@@ -1,5 +1,5 @@
 module Data.Json.Extended
-  ( module Sig
+  ( module Exports
 
   , EJson(..)
   , getEJson
@@ -26,6 +26,8 @@ module Data.Json.Extended
 
   , arbitraryEJsonOfSize
   , arbitraryJsonEncodableEJsonOfSize
+
+  , getType
   ) where
 
 import Prelude
@@ -39,6 +41,7 @@ import Data.Eq1 (eq1)
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
+import Data.Json.Extended.Type (EJsonType)
 import Data.Map as Map
 import Data.Maybe as M
 import Data.Newtype as N
@@ -51,6 +54,8 @@ import Matryoshka (class Corecursive, class Recursive, embed, project)
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
 import Text.Parsing.Parser as P
+
+import Data.Json.Extended.Signature hiding (getType) as Exports
 
 newtype EJson = EJson (Mu.Mu Sig.EJsonF)
 
@@ -207,3 +212,6 @@ object' ∷ SM.StrMap EJson → EJson
 object' = roll <<< Sig.Object <<< map go <<< A.fromFoldable <<< SM.toList
   where
     go (T.Tuple a b) = T.Tuple (string a) b
+
+getType ∷ EJson → EJsonType
+getType = Sig.getType <<< head
