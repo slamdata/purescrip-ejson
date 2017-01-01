@@ -29,7 +29,7 @@ data EJsonF a
   | Interval String
   | ObjectId String
   | Array (Array a)
-  | Object (Array (Tuple a a))
+  | Map (Array (Tuple a a))
 
 instance functorEJsonF ∷ Functor EJsonF where
   map f x =
@@ -45,7 +45,7 @@ instance functorEJsonF ∷ Functor EJsonF where
       Interval i → Interval i
       ObjectId oid → ObjectId oid
       Array xs → Array $ f <$> xs
-      Object xs → Object $ BF.bimap f f <$> xs
+      Map xs → Map $ BF.bimap f f <$> xs
 
 instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 Null Null = true
@@ -61,7 +61,7 @@ instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 (Interval a) (Interval b) = a == b
   eq1 (ObjectId a) (ObjectId b) = a == b
   eq1 (Array xs) (Array ys) = xs == ys
-  eq1 (Object xs) (Object ys) =
+  eq1 (Map xs) (Map ys) =
     let
       xs' = L.fromFoldable xs
       ys' = L.fromFoldable ys
@@ -138,7 +138,7 @@ instance ord1EJsonF ∷ Ord1 EJsonF where
   compare1 _ (Array _) = GT
   compare1 (Array _) _ = LT
 
-  compare1 (Object a) (Object b) = compare (Map.fromFoldable a) (Map.fromFoldable b)
+  compare1 (Map a) (Map b) = compare (Map.fromFoldable a) (Map.fromFoldable b)
 
 getType ∷ ∀ a. EJsonF a → T.EJsonType
 getType = case _ of
@@ -153,4 +153,4 @@ getType = case _ of
   Interval _ → T.Interval
   ObjectId _ → T.ObjectId
   Array _ → T.Array
-  Object _ → T.Object
+  Map _ → T.Map

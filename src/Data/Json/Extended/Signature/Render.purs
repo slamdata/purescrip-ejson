@@ -31,7 +31,7 @@ renderEJsonF rec d =
     Interval str → tagged "INTERVAL" str
     ObjectId str → tagged "OID" str
     Array ds → squares $ commaSep ds
-    Object ds → braces $ renderPairs ds
+    Map ds → braces $ renderPairs ds
   where
     tagged
       ∷ String

@@ -17,8 +17,8 @@ module Data.Json.Extended
   , time
   , interval
   , objectId
-  , object
-  , object'
+  , map
+  , map'
   , array
 
   , renderEJson
@@ -30,7 +30,9 @@ module Data.Json.Extended
   , getType
   ) where
 
-import Prelude
+import Prelude hiding (map)
+
+import Data.Functor as F
 
 import Control.Lazy as Lazy
 
@@ -79,7 +81,7 @@ roll
 roll =
   EJson
     <<< Mu.roll
-    <<< map getEJson
+    <<< F.map getEJson
 
 unroll
   ∷ EJson
@@ -87,7 +89,7 @@ unroll
 unroll =
   getEJson
     >>> Mu.unroll
-    >>> map EJson
+    >>> F.map EJson
 
 head ∷ EJson → Sig.EJsonF (Mu.Mu Sig.EJsonF)
 head = Mu.unroll <<< getEJson
@@ -205,11 +207,11 @@ objectId = roll <<< Sig.ObjectId
 array ∷ Array EJson → EJson
 array = roll <<< Sig.Array
 
-object ∷ Map.Map EJson EJson → EJson
-object = roll <<< Sig.Object <<< A.fromFoldable <<< Map.toList
+map ∷ Map.Map EJson EJson → EJson
+map = roll <<< Sig.Map <<< A.fromFoldable <<< Map.toList
 
-object' ∷ SM.StrMap EJson → EJson
-object' = roll <<< Sig.Object <<< map go <<< A.fromFoldable <<< SM.toList
+map' ∷ SM.StrMap EJson → EJson
+map' = roll <<< Sig.Map <<< F.map go <<< A.fromFoldable <<< SM.toList
   where
     go (T.Tuple a b) = T.Tuple (string a) b
 

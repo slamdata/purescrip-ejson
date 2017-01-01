@@ -14,7 +14,7 @@ data EJsonType
   | Interval
   | ObjectId
   | Array
-  | Object
+  | Map
 
 derive instance eqEJsonType ∷ Eq EJsonType
 derive instance ordEJsonType ∷ Ord EJsonType
@@ -31,4 +31,4 @@ instance showEJsonType ∷ Show EJsonType where
   show Interval = "Interval"
   show ObjectId = "ObjectId"
   show Array = "Array"
-  show Object = "Object"
+  show Map = "Map"
