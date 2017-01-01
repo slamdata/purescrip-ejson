@@ -41,14 +41,26 @@ import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
 import Data.Map as Map
 import Data.Maybe as M
+import Data.Newtype as N
 import Data.Ord1 (compare1)
 import Data.StrMap as SM
 import Data.Tuple as T
+
+import Matryoshka (class Corecursive, class Recursive, embed, project)
+
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
 import Text.Parsing.Parser as P
 
 newtype EJson = EJson (Mu.Mu Sig.EJsonF)
+
+derive instance newtypeEJson :: N.Newtype EJson _
+
+instance recursiveEJson ∷ Recursive EJson Sig.EJsonF where
+  project = N.traverse EJson project
+
+instance corecursiveEJson ∷ Corecursive EJson Sig.EJsonF where
+  embed = N.collect EJson embed
 
 getEJson
   ∷ EJson
