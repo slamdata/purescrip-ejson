@@ -258,7 +258,7 @@ parseEJsonF rec =
     , Interval <$> taggedLiteral "INTERVAL"
     , ObjectId <$> taggedLiteral "OID"
     , Array <<< A.fromFoldable <$> squares (commaSep rec)
-    , Object <<< A.fromFoldable <$> braces (commaSep parseAssignment)
+    , Map <<< A.fromFoldable <$> braces (commaSep parseAssignment)
     ]
 
   where

@@ -36,7 +36,7 @@ encodeJsonEJsonF rec asKey x =
     Interval str → JS.jsonSingletonObject "$interval" $ encodeJson str
     ObjectId str → JS.jsonSingletonObject "$oid" $ encodeJson str
     Array xs → encodeJson $ rec <$> xs
-    Object xs → JS.jsonSingletonObject "$obj" $ encodeJson $ asStrMap xs
+    Map xs → JS.jsonSingletonObject "$obj" $ encodeJson $ asStrMap xs
       where
         tuple
           ∷ T.Tuple a a
@@ -137,7 +137,7 @@ decodeJsonEJsonF rec makeKey =
       ∷ SM.StrMap a
       → EJsonF a
     strMapObject =
-      Object
+      Map
         <<< A.fromFoldable
         <<< map (\(T.Tuple k v) → T.Tuple (makeKey k) v)
         <<< SM.toList

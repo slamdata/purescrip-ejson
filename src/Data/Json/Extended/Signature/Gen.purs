@@ -39,7 +39,7 @@ arbitraryEJsonFWithKeyGen keyGen rec =
   Gen.oneOf (pure Null)
     [ arbitraryBaseEJsonF
     , Array <$> Gen.arrayOf rec
-    , Object <$> do
+    , Map <$> do
         keys ← distinctArrayOf keyGen
         vals ← Gen.vectorOf (A.length keys) rec
         pure $ A.zip keys vals

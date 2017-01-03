@@ -1,5 +1,6 @@
 module Data.Json.Extended.Signature.Core
   ( EJsonF(..)
+  , getType
   ) where
 
 import Prelude
@@ -9,10 +10,11 @@ import Data.Eq1 (class Eq1)
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Int as Int
+import Data.Json.Extended.Type as T
 import Data.List as L
 import Data.Map as Map
 import Data.Ord1 (class Ord1)
-import Data.Tuple as T
+import Data.Tuple (Tuple)
 
 -- | The signature endofunctor for the EJson theory.
 data EJsonF a
@@ -27,7 +29,7 @@ data EJsonF a
   | Interval String
   | ObjectId String
   | Array (Array a)
-  | Object (Array (T.Tuple a a))
+  | Map (Array (Tuple a a))
 
 instance functorEJsonF ∷ Functor EJsonF where
   map f x =
@@ -43,7 +45,7 @@ instance functorEJsonF ∷ Functor EJsonF where
       Interval i → Interval i
       ObjectId oid → ObjectId oid
       Array xs → Array $ f <$> xs
-      Object xs → Object $ BF.bimap f f <$> xs
+      Map xs → Map $ BF.bimap f f <$> xs
 
 instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 Null Null = true
@@ -59,7 +61,7 @@ instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 (Interval a) (Interval b) = a == b
   eq1 (ObjectId a) (ObjectId b) = a == b
   eq1 (Array xs) (Array ys) = xs == ys
-  eq1 (Object xs) (Object ys) =
+  eq1 (Map xs) (Map ys) =
     let
       xs' = L.fromFoldable xs
       ys' = L.fromFoldable ys
@@ -73,8 +75,8 @@ instance eq1EJsonF ∷ Eq1 EJsonF where
 isSubobject
   ∷ ∀ a b
   . (Eq a, Eq b)
-  ⇒ L.List (T.Tuple a b)
-  → L.List (T.Tuple a b)
+  ⇒ L.List (Tuple a b)
+  → L.List (Tuple a b)
   → Boolean
 isSubobject xs ys =
   F.foldl
@@ -136,11 +138,19 @@ instance ord1EJsonF ∷ Ord1 EJsonF where
   compare1 _ (Array _) = GT
   compare1 (Array _) _ = LT
 
-  compare1 (Object a) (Object b) = compare (pairsToObject a) (pairsToObject b)
+  compare1 (Map a) (Map b) = compare (Map.fromFoldable a) (Map.fromFoldable b)
 
-pairsToObject
-  ∷ ∀ a b
-  . (Ord a)
-  ⇒ Array (T.Tuple a b)
-  → Map.Map a b
-pairsToObject = Map.fromFoldable
+getType ∷ ∀ a. EJsonF a → T.EJsonType
+getType = case _ of
+  Null → T.Null
+  String _ → T.String
+  Boolean _ → T.Boolean
+  Integer _ → T.Integer
+  Decimal _ → T.Decimal
+  Timestamp _ → T.Timestamp
+  Date _ → T.Date
+  Time _ → T.Time
+  Interval _ → T.Interval
+  ObjectId _ → T.ObjectId
+  Array _ → T.Array
+  Map _ → T.Map
