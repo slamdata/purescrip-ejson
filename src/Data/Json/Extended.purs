@@ -28,6 +28,20 @@ module Data.Json.Extended
   , arbitraryJsonEncodableEJsonOfSize
 
   , getType
+
+  , _Null
+  , _String
+  , _Boolean
+  , _Integer
+  , _Decimal
+  , _Timestamp
+  , _Date
+  , _Time
+  , _Interval
+  , _ObjectId
+  , _Array
+  , _Map
+  , _Map'
   ) where
 
 import Prelude hiding (map)
@@ -39,16 +53,19 @@ import Control.Lazy as Lazy
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as A
+import Data.Bitraversable (bitraverse)
 import Data.Eq1 (eq1)
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
 import Data.Json.Extended.Type (EJsonType)
+import Data.Lens (Prism', preview, prism')
 import Data.Map as Map
 import Data.Maybe as M
 import Data.Newtype as N
 import Data.Ord1 (compare1)
 import Data.StrMap as SM
+import Data.Traversable (for)
 import Data.Tuple as T
 
 import Matryoshka (class Corecursive, class Recursive, embed, project)
@@ -217,3 +234,68 @@ map' = roll <<< Sig.Map <<< F.map go <<< A.fromFoldable <<< SM.toList
 
 getType ∷ EJson → EJsonType
 getType = Sig.getType <<< head
+
+_Null ∷ Prism' EJson Unit
+_Null = prism' (const null) $ head >>> case _ of
+  Sig.Null → M.Just unit
+  _ → M.Nothing
+
+_String ∷ Prism' EJson String
+_String = prism' string $ head >>> case _ of
+  Sig.String s → M.Just s
+  _ → M.Nothing
+
+_Boolean ∷ Prism' EJson Boolean
+_Boolean = prism' boolean $ head >>> case _ of
+  Sig.Boolean b → M.Just b
+  _ → M.Nothing
+
+_Integer ∷ Prism' EJson Int
+_Integer = prism' integer $ head >>> case _ of
+  Sig.Integer i → M.Just i
+  _ → M.Nothing
+
+_Decimal ∷ Prism' EJson HN.HugeNum
+_Decimal = prism' decimal $ head >>> case _ of
+  Sig.Decimal d → M.Just d
+  _ → M.Nothing
+
+_Timestamp ∷ Prism' EJson String
+_Timestamp = prism' timestamp $ head >>> case _ of
+  Sig.Timestamp t → M.Just t
+  _ → M.Nothing
+
+_Date ∷ Prism' EJson String
+_Date = prism' date $ head >>> case _ of
+  Sig.Date d → M.Just d
+  _ → M.Nothing
+
+_Time ∷ Prism' EJson String
+_Time = prism' time $ head >>> case _ of
+  Sig.Time t → M.Just t
+  _ → M.Nothing
+
+_Interval ∷ Prism' EJson String
+_Interval = prism' interval $ head >>> case _ of
+  Sig.Interval i → M.Just i
+  _ → M.Nothing
+
+_ObjectId ∷ Prism' EJson String
+_ObjectId = prism' objectId $ head >>> case _ of
+  Sig.ObjectId id → M.Just id
+  _ → M.Nothing
+
+_Array ∷ Prism' EJson (Array EJson)
+_Array = prism' array $ unroll >>> case _ of
+  Sig.Array xs → M.Just xs
+  _ → M.Nothing
+
+_Map ∷ Prism' EJson (Map.Map EJson EJson)
+_Map = prism' map $ unroll >>> case _ of
+  Sig.Map kvs → M.Just $ Map.fromFoldable kvs
+  _ → M.Nothing
+
+_Map' ∷ Prism' EJson (SM.StrMap EJson)
+_Map' = prism' map' $ unroll >>> case _ of
+  Sig.Map kvs → SM.fromFoldable <$> for kvs (bitraverse (preview _String) pure)
+  _ → M.Nothing

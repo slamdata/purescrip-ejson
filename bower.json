@@ -24,6 +24,7 @@
     "purescript-newtype": "^1.2.0",
     "purescript-parsing": "^3.0.0",
     "purescript-precise": "^1.0.0",
+    "purescript-profunctor-lenses": "^2.4.0",
     "purescript-strongcheck": "^2.0.0"
   }
 }
