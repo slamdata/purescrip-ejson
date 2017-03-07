@@ -91,23 +91,59 @@ set cur x v = case lmap unroll <$> peel cur of
   Just (Tuple (AtKey k _) path) → maybe v (setKey k x) $ get path v
   Just (Tuple (AtIndex i _) path) → maybe v (setIndex i x) $ get path v
 
+-- | Attempts to lookup a key in an EJson Map, returning the associated value
+-- | if the key exists and the value is a Map.
+-- |
+-- | ``` purescript
+-- | getKey (EJ.string "foo") (EJ.map' $ EJ.string <$> SM.fromFoldable [Tuple "foo" "bar"]) == Just (EJ.string "bar")
+-- | getKey (EJ.string "foo") (EJ.map' $ EJ.string <$> SM.fromFoldable [Tuple "key" "value"]) == Nothing
+-- | getKey (EJ.string "foo") (EJ.boolean false) == Nothing
+-- | ```
 getKey ∷ EJ.EJson → EJ.EJson → Maybe EJ.EJson
 getKey k v = case EJ.head v of
   EJ.Map fields → EJ.EJson <$> lookup (EJ.getEJson k) fields
   _ → Nothing
 
+-- | For a given key, attempts to set a new value for it in an EJson Map. If the
+-- | value is not a Map, or the key does not already exist, the original value
+-- | is returned.
+-- |
+-- | ``` purescript
+-- | let map = EJ.map' $ EJ.string <$> SM.fromFoldable [Tuple "foo" "bar"]
+-- | setKey (EJ.string "foo") (EJ.boolean true) map == EJ.map' (SM.fromFoldable [Tuple "foo" (EJ.boolean true)])
+-- | setKey (EJ.string "bar") (EJ.boolean true) map == map
+-- | setKey (EJ.string "foo") (EJ.boolean true) (EJ.string "not-a-map") == EJ.string "not-a-map"
+-- | ```
 setKey ∷ EJ.EJson → EJ.EJson → EJ.EJson → EJ.EJson
-setKey k (EJ.EJson x) v = case EJ.head v of
+setKey (EJ.EJson k) (EJ.EJson x) v = case EJ.head v of
   EJ.Map fields →
     EJ.EJson <<< roll <<< EJ.Map $ map
-      (\(kv@(Tuple k v)) → if k == k then Tuple k x else kv) fields
+      (\(kv@(Tuple k' v)) → if k == k' then Tuple k x else kv) fields
   _ → v
 
+-- | Attempts to lookup an index in an EJson Array, returning the associated
+-- | value if there is an item at that index, and the value is an Array.
+-- |
+-- | ``` purescript
+-- | getIndex 0 (EJ.array $ EJ.string <$> ["foo"]) == Just (EJ.string "foo")
+-- | getIndex 1 (EJ.array $ EJ.string <$> ["foo"]) == Nothing
+-- | getIndex 0 (EJ.boolean false) == Nothing
+-- | ```
 getIndex ∷ Int → EJ.EJson → Maybe EJ.EJson
 getIndex i v = case EJ.head v of
   EJ.Array items → EJ.EJson <$> A.index items i
   _ → Nothing
 
+-- | For a given index, attempts to set a new value for it in an EJson Array. If
+-- | the value is not a Array, or the index does not already exist, the original
+-- | value is returned.
+-- |
+-- | ``` purescript
+-- | let array = EJ.array $ EJ.string <$> ["foo"]
+-- | setIndex 0 (EJ.boolean true) array == EJ.array [EJ.boolean true]
+-- | setIndex 1 (EJ.boolean true) array == array
+-- | setIndex 0 (EJ.boolean true) (EJ.string "not-an-array") == EJ.string "not-an-array"
+-- | ```
 setIndex ∷ Int → EJ.EJson → EJ.EJson → EJ.EJson
 setIndex i (EJ.EJson x) v = case EJ.head v of
   EJ.Array items →
