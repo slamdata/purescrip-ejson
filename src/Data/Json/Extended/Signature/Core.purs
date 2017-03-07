@@ -6,14 +6,14 @@ module Data.Json.Extended.Signature.Core
 import Prelude
 
 import Data.Bifunctor as BF
-import Data.Eq1 (class Eq1)
+import Data.Eq (class Eq1)
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Type as T
 import Data.List as L
 import Data.Map as Map
-import Data.Ord1 (class Ord1)
+import Data.Ord (class Ord1)
 import Data.Tuple (Tuple)
 
 -- | The signature endofunctor for the EJson theory.

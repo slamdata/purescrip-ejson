@@ -54,7 +54,7 @@ import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as A
 import Data.Bitraversable (bitraverse)
-import Data.Eq1 (eq1)
+import Data.Eq (eq1)
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
@@ -63,7 +63,7 @@ import Data.Lens (Prism', preview, prism')
 import Data.Map as Map
 import Data.Maybe as M
 import Data.Newtype as N
-import Data.Ord1 (compare1)
+import Data.Ord (compare1)
 import Data.StrMap as SM
 import Data.Traversable (for)
 import Data.Tuple as T
