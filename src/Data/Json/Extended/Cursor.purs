@@ -14,6 +14,28 @@ import Data.Tuple (Tuple(..), lookup)
 
 import Matryoshka (Algebra, cata)
 
+-- | A cursor to a location in an EJson value.
+-- |
+-- | The functions operating on cursor are "depth first", that is to say:
+-- | ``` purescript
+-- | atKey (EJ.string "foo") $ atIndex 0 $ atKey (EJ.string "bar") all
+-- | ```
+-- | Is the path:
+-- | ```
+-- | <value>.bar[0].foo
+-- | ```
+type Cursor = Mu CursorF
+
+all ∷ Cursor
+all = roll All
+
+atKey ∷ EJ.EJson → Cursor → Cursor
+atKey k = roll <<< AtKey k
+
+atIndex ∷ Int → Cursor → Cursor
+atIndex i = roll <<< AtIndex i
+
+-- | The possible steps in a cursor.
 data CursorF a
   = All
   | AtKey EJson a
@@ -35,23 +57,22 @@ instance showCursorF ∷ Show a => Show (CursorF a) where
     AtKey k a → "(AtKey " <> show k <> " " <> show a <> ")"
     AtIndex i a → "(AtIndex " <> show i <> " " <> show a <> ")"
 
-type Cursor = Mu CursorF
-
-all ∷ Cursor
-all = roll All
-
-atKey ∷ EJ.EJson → Cursor → Cursor
-atKey k = roll <<< AtKey k
-
-atIndex ∷ Int → Cursor → Cursor
-atIndex i = roll <<< AtIndex i
-
+-- | Peels off one layer of a cursor, if possible. The resulting tuple contains
+-- | the current step (made relative), and the remainder of the cursor.
+-- |
+-- | ``` purescript
+-- | peel (atKey (EJ.string "foo") $ atIndex 0 all) == Just (Tuple (atKey (EJ.string "foo") all) (atIndex 0 all))
+-- | peel (atIndex 0 all) == Just (Tuple (atIndex 0 all) all)
+-- | peel all == Nothing
+-- | ```
 peel ∷ Cursor → Maybe (Tuple Cursor Cursor)
 peel c = case unroll c of
   All → Nothing
   AtKey k rest → Just $ Tuple (atKey k all) rest
   AtIndex i rest → Just $ Tuple (atIndex i all) rest
 
+-- | Takes a cursor and attempts to read from an EJson value, producing the
+-- | value the cursor points to, if it exists.
 get ∷ Cursor → EJson → Maybe EJson
 get = cata go
   where
@@ -61,12 +82,14 @@ get = cata go
     AtKey k prior → getKey k <=< prior
     AtIndex i prior → getIndex i <=< prior
 
-set ∷ Cursor → EJson → EJson → Maybe EJson
+-- | Takes a cursor and attempts to set an EJson value within a larger EJson
+-- | value if the value the cursor points at exists.
+set ∷ Cursor → EJson → EJson → EJson
 set cur x v = case lmap unroll <$> peel cur of
-  Nothing → Just x
-  Just (Tuple All _) → Just x
-  Just (Tuple (AtKey k _) path) → setKey k x <$> get path v
-  Just (Tuple (AtIndex i _) path) → setIndex i x <$> get path v
+  Nothing → x
+  Just (Tuple All _) → x
+  Just (Tuple (AtKey k _) path) → maybe v (setKey k x) $ get path v
+  Just (Tuple (AtIndex i _) path) → maybe v (setIndex i x) $ get path v
 
 getKey ∷ EJ.EJson → EJ.EJson → Maybe EJ.EJson
 getKey k v = case EJ.head v of
