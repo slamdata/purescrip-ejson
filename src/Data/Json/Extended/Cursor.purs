@@ -5,14 +5,14 @@ import Prelude
 import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Eq (class Eq1)
-import Data.Functor.Mu (Mu, roll, unroll)
-import Data.Json.Extended (EJson)
+import Data.Functor.Mu (Mu)
+import Data.Json.Extended (EJson, renderEJson)
 import Data.Json.Extended as EJ
 import Data.Maybe (Maybe(..), maybe)
 import Data.Ord (class Ord1)
 import Data.Tuple (Tuple(..), lookup)
 
-import Matryoshka (Algebra, cata)
+import Matryoshka (Algebra, cata, project, embed)
 
 -- | A cursor to a location in an EJson value.
 -- |
@@ -27,13 +27,13 @@ import Matryoshka (Algebra, cata)
 type Cursor = Mu CursorF
 
 all ∷ Cursor
-all = roll All
+all = embed All
 
-atKey ∷ EJ.EJson → Cursor → Cursor
-atKey k = roll <<< AtKey k
+atKey ∷ EJson → Cursor → Cursor
+atKey k = embed <<< AtKey k
 
 atIndex ∷ Int → Cursor → Cursor
-atIndex i = roll <<< AtIndex i
+atIndex i = embed <<< AtIndex i
 
 -- | The possible steps in a cursor.
 data CursorF a
@@ -47,15 +47,14 @@ derive instance ordCursor ∷ Ord a ⇒ Ord (CursorF a)
 
 instance eq1CursorF ∷ Eq1 CursorF where
   eq1 = eq
-
 instance ord1CursorF ∷ Ord1 CursorF where
   compare1 = compare
 
-instance showCursorF ∷ Show a => Show (CursorF a) where
-  show = case _ of
-    All → "All"
-    AtKey k a → "(AtKey " <> show k <> " " <> show a <> ")"
-    AtIndex i a → "(AtIndex " <> show i <> " " <> show a <> ")"
+renderEJsonCursor ∷ Cursor → String
+renderEJsonCursor = cata case _ of
+  All → "All"
+  AtKey ejson a → "(AtKey " <> renderEJson ejson <> " " <> a <> ")"
+  AtIndex i a → "(AtIndex " <> show i <> " " <> a <> ")"
 
 -- | Peels off one layer of a cursor, if possible. The resulting tuple contains
 -- | the current step (made relative), and the remainder of the cursor.
@@ -66,7 +65,7 @@ instance showCursorF ∷ Show a => Show (CursorF a) where
 -- | peel all == Nothing
 -- | ```
 peel ∷ Cursor → Maybe (Tuple Cursor Cursor)
-peel c = case unroll c of
+peel c = case project c of
   All → Nothing
   AtKey k rest → Just $ Tuple (atKey k all) rest
   AtIndex i rest → Just $ Tuple (atIndex i all) rest
@@ -76,7 +75,7 @@ peel c = case unroll c of
 get ∷ Cursor → EJson → Maybe EJson
 get = cata go
   where
-  go :: Algebra CursorF (EJson -> Maybe EJson)
+  go ∷ Algebra CursorF (EJson → Maybe EJson)
   go = case _ of
     All → Just
     AtKey k prior → getKey k <=< prior
@@ -85,7 +84,7 @@ get = cata go
 -- | Takes a cursor and attempts to set an EJson value within a larger EJson
 -- | value if the value the cursor points at exists.
 set ∷ Cursor → EJson → EJson → EJson
-set cur x v = case lmap unroll <$> peel cur of
+set cur x v = case lmap project <$> peel cur of
   Nothing → x
   Just (Tuple All _) → x
   Just (Tuple (AtKey k _) path) → maybe v (setKey k x) $ get path v
@@ -100,8 +99,8 @@ set cur x v = case lmap unroll <$> peel cur of
 -- | getKey (EJ.string "foo") (EJ.boolean false) == Nothing
 -- | ```
 getKey ∷ EJ.EJson → EJ.EJson → Maybe EJ.EJson
-getKey k v = case EJ.head v of
-  EJ.Map fields → EJ.EJson <$> lookup (EJ.getEJson k) fields
+getKey k v = case project v of
+  EJ.Map fields → lookup k fields
   _ → Nothing
 
 -- | For a given key, attempts to set a new value for it in an EJson Map. If the
@@ -115,9 +114,9 @@ getKey k v = case EJ.head v of
 -- | setKey (EJ.string "foo") (EJ.boolean true) (EJ.string "not-a-map") == EJ.string "not-a-map"
 -- | ```
 setKey ∷ EJ.EJson → EJ.EJson → EJ.EJson → EJ.EJson
-setKey (EJ.EJson k) (EJ.EJson x) v = case EJ.head v of
+setKey k x v = case project v of
   EJ.Map fields →
-    EJ.EJson <<< roll <<< EJ.Map $ map
+    embed <<< EJ.Map $ map
       (\(kv@(Tuple k' v)) → if k == k' then Tuple k x else kv) fields
   _ → v
 
@@ -130,8 +129,8 @@ setKey (EJ.EJson k) (EJ.EJson x) v = case EJ.head v of
 -- | getIndex 0 (EJ.boolean false) == Nothing
 -- | ```
 getIndex ∷ Int → EJ.EJson → Maybe EJ.EJson
-getIndex i v = case EJ.head v of
-  EJ.Array items → EJ.EJson <$> A.index items i
+getIndex i v = case project v of
+  EJ.Array items → A.index items i
   _ → Nothing
 
 -- | For a given index, attempts to set a new value for it in an EJson Array. If
@@ -145,7 +144,7 @@ getIndex i v = case EJ.head v of
 -- | setIndex 0 (EJ.boolean true) (EJ.string "not-an-array") == EJ.string "not-an-array"
 -- | ```
 setIndex ∷ Int → EJ.EJson → EJ.EJson → EJ.EJson
-setIndex i (EJ.EJson x) v = case EJ.head v of
+setIndex i x v = case project v of
   EJ.Array items →
-    maybe v (EJ.EJson <<< roll <<< EJ.Array) $ A.updateAt i x items
+    maybe v (embed <<< EJ.Array) $ A.updateAt i x items
   _ → v
