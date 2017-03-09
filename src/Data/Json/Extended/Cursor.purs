@@ -6,10 +6,11 @@ import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Eq (class Eq1)
 import Data.Functor.Mu (Mu)
-import Data.Json.Extended (EJson, renderEJson)
+import Data.Json.Extended (EJson)
 import Data.Json.Extended as EJ
 import Data.Maybe (Maybe(..), maybe)
 import Data.Ord (class Ord1)
+import Data.TacitString (TacitString)
 import Data.Tuple (Tuple(..), lookup)
 
 import Matryoshka (Algebra, cata, project, embed)
@@ -47,14 +48,18 @@ derive instance ordCursor ∷ Ord a ⇒ Ord (CursorF a)
 
 instance eq1CursorF ∷ Eq1 CursorF where
   eq1 = eq
+
 instance ord1CursorF ∷ Ord1 CursorF where
   compare1 = compare
 
+instance showCursorF ∷ Show (CursorF TacitString) where
+  show = case _ of
+    All → "All"
+    AtKey k a → "(AtKey " <> show k <> " " <> show a <> ")"
+    AtIndex i a → "(AtIndex " <> show i <> " " <> show a <> ")"
+
 renderEJsonCursor ∷ Cursor → String
-renderEJsonCursor = cata case _ of
-  All → "All"
-  AtKey ejson a → "(AtKey " <> renderEJson ejson <> " " <> a <> ")"
-  AtIndex i a → "(AtIndex " <> show i <> " " <> a <> ")"
+renderEJsonCursor = show
 
 -- | Peels off one layer of a cursor, if possible. The resulting tuple contains
 -- | the current step (made relative), and the remainder of the cursor.
