@@ -49,7 +49,6 @@ import Control.Lazy as Lazy
 import Data.Argonaut as JS
 import Data.Array as A
 import Data.Bitraversable (bitraverse)
-import Data.Bifunctor (lmap)
 import Data.Either as E
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
@@ -58,13 +57,11 @@ import Data.Json.Extended.Type (EJsonType)
 import Data.Lens (Prism', preview, prism')
 import Data.Map as Map
 import Data.Maybe as M
-import Data.Newtype as N
-import Data.Ord (compare1)
 import Data.StrMap as SM
 import Data.Traversable (for)
 import Data.Tuple as T
 
-import Matryoshka (class Corecursive, class Recursive, embed, project, cata, anaM)
+import Matryoshka (embed, project, cata, anaM)
 
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen

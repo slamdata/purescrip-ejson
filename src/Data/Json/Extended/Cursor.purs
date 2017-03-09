@@ -6,13 +6,11 @@ import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Eq (class Eq1)
 import Data.Functor.Mu (Mu)
-import Data.Json.Extended (EJson)
+import Data.Json.Extended (EJson, renderEJson)
 import Data.Json.Extended as EJ
 import Data.Maybe (Maybe(..), maybe)
 import Data.Ord (class Ord1)
 import Data.Tuple (Tuple(..), lookup)
-
-import Data.Json.Extended (renderEJson)
 
 import Matryoshka (Algebra, cata, project, embed)
 
@@ -31,7 +29,7 @@ type Cursor = Mu CursorF
 all ∷ Cursor
 all = embed All
 
-atKey ∷ EJ.EJson → Cursor → Cursor
+atKey ∷ EJson → Cursor → Cursor
 atKey k = embed <<< AtKey k
 
 atIndex ∷ Int → Cursor → Cursor

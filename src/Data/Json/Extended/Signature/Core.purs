@@ -11,9 +11,8 @@ import Data.Foldable as F
 import Data.Traversable as T
 import Data.HugeNum as HN
 import Data.Int as Int
-import Data.Json.Extended.Type as T
+import Data.Json.Extended.Type as JT
 import Data.List as L
-import Data.Map as Map
 import Data.Monoid (mempty)
 import Data.Ord (class Ord1)
 import Data.Tuple (Tuple(..))
@@ -132,17 +131,17 @@ derive instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a)
 instance ord1EJsonF ∷ Ord1 EJsonF where
   compare1 = compare
 
-getType ∷ ∀ a. EJsonF a → T.EJsonType
+getType ∷ ∀ a. EJsonF a → JT.EJsonType
 getType = case _ of
-  Null → T.Null
-  String _ → T.String
-  Boolean _ → T.Boolean
-  Integer _ → T.Integer
-  Decimal _ → T.Decimal
-  Timestamp _ → T.Timestamp
-  Date _ → T.Date
-  Time _ → T.Time
-  Interval _ → T.Interval
-  ObjectId _ → T.ObjectId
-  Array _ → T.Array
-  Map _ → T.Map
+  Null → JT.Null
+  String _ → JT.String
+  Boolean _ → JT.Boolean
+  Integer _ → JT.Integer
+  Decimal _ → JT.Decimal
+  Timestamp _ → JT.Timestamp
+  Date _ → JT.Date
+  Time _ → JT.Time
+  Interval _ → JT.Interval
+  ObjectId _ → JT.ObjectId
+  Array _ → JT.Array
+  Map _ → JT.Map

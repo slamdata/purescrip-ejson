@@ -3,12 +3,8 @@ module Data.Json.Extended.Signature.Json where
 import Prelude
 
 import Control.Alt ((<|>))
-import Control.Bind ((>=>))
 
-import Data.Bifunctor (lmap, bimap)
-import Data.Eq (class Eq1)
-import Data.Ord (class Ord1)
-import Data.Functor.Coproduct (Coproduct(..), coproduct, right, left)
+import Data.Bifunctor (lmap)
 import Data.Argonaut.Core as JS
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Encode (encodeJson)
@@ -16,7 +12,6 @@ import Data.Array as A
 import Data.Either as E
 import Data.HugeNum as HN
 import Data.Int as Int
-import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Json.Extended.Signature.Core (EJsonF(..))
 import Data.Maybe as M
 import Data.StrMap as SM
