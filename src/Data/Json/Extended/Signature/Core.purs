@@ -47,6 +47,9 @@ instance functorEJsonF ∷ Functor EJsonF where
       Array xs → Array $ f <$> xs
       Map xs → Map $ BF.bimap f f <$> xs
 
+derive instance eqEJsonF ∷ Eq a ⇒ Eq (EJsonF a)
+derive instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a)
+
 instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 Null Null = true
   eq1 (Boolean b1) (Boolean b2) = b1 == b2
