@@ -16,6 +16,7 @@ import Data.List as L
 import Data.Monoid (mempty)
 import Data.Ord (class Ord1)
 import Data.Tuple (Tuple(..))
+import Data.TacitString (TacitString)
 
 -- | The signature endofunctor for the EJson theory.
 data EJsonF a
@@ -78,8 +79,6 @@ instance traversableEJsonF ∷ T.Traversable EJsonF where
     ObjectId oid → pure $ ObjectId oid
   sequence = T.sequenceDefault
 
-
-
 instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 Null Null = true
   eq1 (Boolean b1) (Boolean b2) = b1 == b2
@@ -130,6 +129,21 @@ intToHugeNum =
 derive instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a)
 instance ord1EJsonF ∷ Ord1 EJsonF where
   compare1 = compare
+
+instance showEJsonF ∷ Show (EJsonF TacitString) where
+  show = case _ of
+    Null → "Null"
+    String s → "(String " <> show s <> ")"
+    Boolean b → "(Boolean " <> show b <> ")"
+    Integer i → "(Integer " <> show i <> ")"
+    Decimal n → "(Decimal " <> show n <> ")"
+    Timestamp r → "(Timestamp " <> show r <> ")"
+    Date d → "(Date " <> show d <> ")"
+    Time t → "(Time " <> show t <> ")"
+    Interval i → "(Interval " <> show i <> ")"
+    ObjectId i → "(ObjectId " <> show i <> ")"
+    Array xs → "(Array " <> show xs <> ")"
+    Map kvs → "(Map " <> show kvs <> ")"
 
 getType ∷ ∀ a. EJsonF a → JT.EJsonType
 getType = case _ of
