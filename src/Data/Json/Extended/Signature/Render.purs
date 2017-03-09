@@ -13,64 +13,60 @@ import Data.String.Regex.Flags as RXF
 import Data.Tuple as T
 import Partial.Unsafe (unsafePartial)
 
-renderEJsonF
-  ∷ ∀ a
-  . (a → String)
-  → EJsonF a
-  → String
-renderEJsonF rec d =
-  case d of
-    Null → "null"
-    Boolean b → if b then "true" else "false"
-    Integer i → show i
-    Decimal a → HN.toString a
-    String str → stringEJson str
-    Timestamp str → tagged "TIMESTAMP" str
-    Time str → tagged "TIME" str
-    Date str → tagged "DATE" str
-    Interval str → tagged "INTERVAL" str
-    ObjectId str → tagged "OID" str
-    Array ds → squares $ commaSep ds
-    Map ds → braces $ renderPairs ds
-  where
-    tagged
-      ∷ String
-      → String
-      → String
-    tagged tag str =
-      tag <> parens (stringEJson str)
+import Matryoshka (Algebra)
 
-    replaceAll
-      ∷ String
-      → String
-      → String
-      → String
-    replaceAll i =
-      RX.replace $ unsafePartial fromRight $ RX.regex i RXF.global
+renderEJsonF ∷ Algebra EJsonF String
+renderEJsonF = case _ of
+  Null → "null"
+  Boolean b → if b then "true" else "false"
+  Integer i → show i
+  Decimal a → HN.toString a
+  String str → stringEJson str
+  Timestamp str → tagged "TIMESTAMP" str
+  Time str → tagged "TIME" str
+  Date str → tagged "DATE" str
+  Interval str → tagged "INTERVAL" str
+  ObjectId str → tagged "OID" str
+  Array ds → squares $ commaSep ds
+  Map ds → braces $ renderPairs ds
+  where
+  tagged
+    ∷ String
+    → String
+    → String
+  tagged tag str =
+    tag <> parens (stringEJson str)
+
+  replaceAll
+    ∷ String
+    → String
+    → String
+    → String
+  replaceAll i =
+    RX.replace $ unsafePartial fromRight $ RX.regex i RXF.global
 
     -- | Surround text in double quotes, escaping internal double quotes.
-    stringEJson
-      ∷ String
-      → String
-    stringEJson str =
-      "\"" <> replaceAll "\"" "\\\"" str <> "\""
+  stringEJson
+    ∷ String
+    → String
+  stringEJson str =
+    "\"" <> replaceAll "\"" "\\\"" str <> "\""
 
-    commaSep
-      ∷ ∀ f
-      . (Functor f, F.Foldable f)
-      ⇒ f a
-      → String
-    commaSep =
-      F.intercalate "," <<<
-        map rec
+  commaSep
+    ∷ ∀ f
+    . F.Foldable f
+    ⇒ f String
+    → String
+  commaSep =
+    F.intercalate ","
 
-    renderPairs
-      ∷ Array (T.Tuple a a)
-      → String
-    renderPairs =
-      F.intercalate ", " <<<
-        map \(T.Tuple k v) →
-          rec k <> ": " <> rec v
+
+  renderPairs
+    ∷ Array (T.Tuple String String)
+    → String
+  renderPairs =
+    F.intercalate ", " <<< map (\(T.Tuple k v) → k <> ": " <> v)
+
 
 parens
   ∷ String

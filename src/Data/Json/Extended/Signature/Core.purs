@@ -6,15 +6,17 @@ module Data.Json.Extended.Signature.Core
 import Prelude
 
 import Data.Bifunctor as BF
-import Data.Eq (class Eq1)
+import Data.Eq (class Eq1, eq1)
 import Data.Foldable as F
+import Data.Traversable as T
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Type as T
 import Data.List as L
 import Data.Map as Map
+import Data.Monoid (mempty)
 import Data.Ord (class Ord1)
-import Data.Tuple (Tuple)
+import Data.Tuple (Tuple(..))
 
 -- | The signature endofunctor for the EJson theory.
 data EJsonF a
@@ -47,6 +49,38 @@ instance functorEJsonF ∷ Functor EJsonF where
       Array xs → Array $ f <$> xs
       Map xs → Map $ BF.bimap f f <$> xs
 
+instance foldableEJsonF ∷ F.Foldable EJsonF where
+  foldMap f = case _ of
+    Array xs → F.foldMap f xs
+    Map xs → F.foldMap (\(Tuple k v) → f k <> f v) xs
+    _ → mempty
+  foldl f a = case _ of
+    Array xs → F.foldl f a xs
+    Map xs → F.foldl (\acc (Tuple k v) → f (f acc k) v) a xs
+    _ → a
+  foldr f a = case _ of
+    Array xs → F.foldr f a xs
+    Map xs → F.foldr (\(Tuple k v) acc → f k $ f v acc) a xs
+    _ → a
+
+instance traversableEJsonF ∷ T.Traversable EJsonF where
+  traverse f = case _ of
+    Array xs → map Array $ T.traverse f xs
+    Map xs → map Map $ T.traverse (\(Tuple k v) → Tuple <$> f k <*> f v) xs
+    Null → pure Null
+    String str → pure $ String str
+    Boolean b → pure $ Boolean b
+    Integer i → pure $ Integer i
+    Decimal a → pure $ Decimal a
+    Timestamp ts → pure $ Timestamp ts
+    Date d → pure $ Date d
+    Time t → pure $ Time t
+    Interval i → pure $ Interval i
+    ObjectId oid → pure $ ObjectId oid
+  sequence = T.sequenceDefault
+
+
+
 instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 Null Null = true
   eq1 (Boolean b1) (Boolean b2) = b1 == b2
@@ -70,6 +104,9 @@ instance eq1EJsonF ∷ Eq1 EJsonF where
         && isSubobject ys' xs'
   eq1 _ _ = false
 
+instance eqEJsonF ∷ Eq a ⇒ Eq (EJsonF a) where
+  eq = eq1
+
 -- | Very badly performing, but we don't have access to Ord here,
 -- | so the performant version is not implementable.
 isSubobject
@@ -91,54 +128,9 @@ intToHugeNum =
   HN.fromNumber
     <<< Int.toNumber
 
+derive instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a)
 instance ord1EJsonF ∷ Ord1 EJsonF where
-  compare1 Null Null = EQ
-  compare1 _ Null = GT
-  compare1 Null _ = LT
-
-  compare1 (Boolean b1) (Boolean b2) = compare b1 b2
-  compare1 _ (Boolean _) = GT
-  compare1 (Boolean _) _ = LT
-
-  compare1 (Integer i) (Integer j) = compare i j
-  compare1 (Integer i) (Decimal b) = compare (intToHugeNum i) b
-  compare1 (Decimal a) (Integer j) = compare a (intToHugeNum j)
-  compare1 _ (Integer _) = GT
-  compare1 (Integer _) _ = LT
-
-  compare1 (Decimal a) (Decimal b) = compare a b
-  compare1 _ (Decimal _) = GT
-  compare1 (Decimal _) _ = LT
-
-  compare1 (String a) (String b) = compare a b
-  compare1 _ (String _) = GT
-  compare1 (String _) _ = LT
-
-  compare1 (Timestamp a) (Timestamp b) = compare a b
-  compare1 _ (Timestamp _) = GT
-  compare1 (Timestamp _) _ = LT
-
-  compare1 (Date a) (Date b) = compare a b
-  compare1 _ (Date _) = GT
-  compare1 (Date _) _ = LT
-
-  compare1 (Time a) (Time b) = compare a b
-  compare1 _ (Time _) = GT
-  compare1 (Time _) _ = LT
-
-  compare1 (Interval a) (Interval b) = compare a b
-  compare1 _ (Interval _) = GT
-  compare1 (Interval _) _ = LT
-
-  compare1 (ObjectId a) (ObjectId b) = compare a b
-  compare1 _ (ObjectId _) = GT
-  compare1 (ObjectId _) _ = LT
-
-  compare1 (Array a) (Array b) = compare a b
-  compare1 _ (Array _) = GT
-  compare1 (Array _) _ = LT
-
-  compare1 (Map a) (Map b) = compare (Map.fromFoldable a) (Map.fromFoldable b)
+  compare1 = compare
 
 getType ∷ ∀ a. EJsonF a → T.EJsonType
 getType = case _ of

@@ -9,9 +9,9 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Encode (encodeJson)
 import Data.Either as E
-import Data.Maybe
+import Data.Maybe (Maybe(..))
 import Data.StrMap as SM
-import Data.Tuple
+import Data.Tuple (Tuple(..))
 import Data.Json.Extended (EJson, arbitraryJsonEncodableEJsonOfSize, arbitraryEJsonOfSize, renderEJson, parseEJson)
 import Data.Json.Extended as EJ
 import Data.Json.Extended.Cursor as EJC

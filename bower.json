@@ -18,7 +18,6 @@
     "purescript-argonaut-codecs": "^2.0.0",
     "purescript-argonaut-core": "^2.0.1",
     "purescript-bifunctors": "^2.0.0",
-    "purescript-fixed-points": "^3.0.0",
     "purescript-maps": "^2.0.0",
     "purescript-matryoshka": "^0.2.0",
     "purescript-newtype": "^1.2.0",
