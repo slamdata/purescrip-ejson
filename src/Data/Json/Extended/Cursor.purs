@@ -12,6 +12,8 @@ import Data.Maybe (Maybe(..), maybe)
 import Data.Ord (class Ord1)
 import Data.Tuple (Tuple(..), lookup)
 
+import Data.Json.Extended (renderEJson)
+
 import Matryoshka (Algebra, cata, project, embed)
 
 -- | A cursor to a location in an EJson value.
@@ -47,15 +49,14 @@ derive instance ordCursor ∷ Ord a ⇒ Ord (CursorF a)
 
 instance eq1CursorF ∷ Eq1 CursorF where
   eq1 = eq
-
 instance ord1CursorF ∷ Ord1 CursorF where
   compare1 = compare
 
-instance showCursorF ∷ Show a => Show (CursorF a) where
-  show = case _ of
-    All → "All"
-    AtKey k a → "(AtKey " <> show k <> " " <> show a <> ")"
-    AtIndex i a → "(AtIndex " <> show i <> " " <> show a <> ")"
+renderEJsonCursor ∷ Cursor → String
+renderEJsonCursor = cata case _ of
+  All → "All"
+  AtKey ejson a → "(AtKey " <> renderEJson ejson <> " " <> a <> ")"
+  AtIndex i a → "(AtIndex " <> show i <> " " <> a <> ")"
 
 -- | Peels off one layer of a cursor, if possible. The resulting tuple contains
 -- | the current step (made relative), and the remainder of the cursor.
@@ -76,7 +77,7 @@ peel c = case project c of
 get ∷ Cursor → EJson → Maybe EJson
 get = cata go
   where
-  go :: Algebra CursorF (EJson -> Maybe EJson)
+  go ∷ Algebra CursorF (EJson → Maybe EJson)
   go = case _ of
     All → Just
     AtKey k prior → getKey k <=< prior

@@ -15,8 +15,6 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-argonaut-codecs": "^2.0.0",
-    "purescript-argonaut-core": "^2.0.1",
     "purescript-bifunctors": "^2.0.0",
     "purescript-maps": "^2.0.0",
     "purescript-matryoshka": "^0.2.0",
@@ -24,6 +22,7 @@
     "purescript-parsing": "^3.0.0",
     "purescript-precise": "^1.0.0",
     "purescript-profunctor-lenses": "^2.4.0",
-    "purescript-strongcheck": "^2.0.0"
+    "purescript-strongcheck": "^2.0.0",
+    "purescript-argonaut": "^2.0.0"
   }
 }

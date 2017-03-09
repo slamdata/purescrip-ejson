@@ -1,8 +1,6 @@
 module Data.Json.Extended
   ( module Exports
-
-  , EJson(..)
-
+  , EJson
   , null
   , boolean
   , integer
@@ -19,6 +17,8 @@ module Data.Json.Extended
 
   , renderEJson
   , parseEJson
+  , decodeEJson
+  , encodeEJson
 
   , arbitraryEJsonOfSize
   , arbitraryJsonEncodableEJsonOfSize
@@ -46,15 +46,12 @@ import Data.Functor as F
 
 import Control.Lazy as Lazy
 
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
-import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Argonaut as JS
 import Data.Array as A
 import Data.Bitraversable (bitraverse)
 import Data.Bifunctor (lmap)
 import Data.Either as E
-import Data.Eq (eq1)
 import Data.Functor.Mu as Mu
-import Data.Functor.Coproduct (Coproduct)
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
 import Data.Json.Extended.Type (EJsonType)
@@ -75,30 +72,14 @@ import Text.Parsing.Parser as P
 
 import Data.Json.Extended.Signature hiding (getType) as Exports
 
-newtype EJson = EJson (Mu.Mu Sig.EJsonF)
+type EJson = Mu.Mu Sig.EJsonF
 
-derive instance newtypeEJson :: N.Newtype EJson _
 
-instance recursiveEJson ∷ Recursive EJson Sig.EJsonF where
-  project = N.traverse EJson project
+decodeEJson ∷ JS.Json → E.Either String EJson
+decodeEJson = anaM Sig.decodeJsonEJsonF
 
-instance corecursiveEJson ∷ Corecursive EJson Sig.EJsonF where
-  embed = N.collect EJson embed
-
-derive newtype instance eqEJson ∷ Eq EJson
-derive newtype instance ordEJson ∷ Ord EJson
-
-instance showEJson ∷ Show EJson where
-  show = renderEJson
-
-instance decodeJsonEJson ∷ DecodeJson EJson where
-  decodeJson = anaM Sig.decodeJsonEJsonF
-
--- | This is a _lossy_ encoding of EJSON to JSON; JSON only supports objects with strings
--- as keys.
-instance encodeJsonEJson ∷ EncodeJson EJson where
-  encodeJson = cata Sig.encodeJsonEJsonF
-
+encodeEJson ∷ EJson → JS.Json
+encodeEJson = cata Sig.encodeJsonEJsonF
 
 arbitraryEJsonOfSize
   ∷ Gen.Size
@@ -123,18 +104,13 @@ arbitraryJsonEncodableEJsonOfSize size =
       embed <<< Sig.String <$>
         SC.arbitrary
 
-renderEJson
-  ∷ EJson
-  → String
+renderEJson ∷ EJson → String
 renderEJson =
   cata Sig.renderEJsonF
 
 
 -- | A closed parser of SQL^2 constant expressions
-parseEJson
-  ∷ forall m
-  . (Monad m)
-  ⇒ P.ParserT String m EJson
+parseEJson ∷ ∀ m. (Monad m) ⇒ P.ParserT String m EJson
 parseEJson =
   Lazy.fix \f →
     embed <$>
