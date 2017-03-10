@@ -1,5 +1,8 @@
 module Data.Json.Extended.Signature.Parse
   ( parseEJsonF
+  , parseTimestamp
+  , parseDate
+  , parseTime
   ) where
 
 import Prelude
@@ -7,6 +10,8 @@ import Prelude
 import Control.Alt ((<|>))
 
 import Data.Array as A
+import Data.DateTime as DT
+import Data.Enum (toEnum)
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Int as Int
@@ -22,7 +27,7 @@ import Text.Parsing.Parser.String as PS
 
 parens
   ∷ ∀ m a
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m a
   → P.ParserT String m a
 parens =
@@ -32,7 +37,7 @@ parens =
 
 squares
   ∷ ∀ m a
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m a
   → P.ParserT String m a
 squares =
@@ -42,7 +47,7 @@ squares =
 
 braces
   ∷ ∀ m a
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m a
   → P.ParserT String m a
 braces =
@@ -52,7 +57,7 @@ braces =
 
 commaSep
   ∷ ∀ m a
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m a
   → P.ParserT String m (L.List a)
 commaSep =
@@ -63,15 +68,13 @@ commaSep =
 
 stringLiteral
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m String
 stringLiteral =
   PC.between quote quote (A.many stringChar)
     <#> S.fromCharArray
 
   where
-    quote = PS.string "\""
-
     stringChar =
       PC.try stringEscape
         <|> stringLetter
@@ -83,19 +86,55 @@ stringLiteral =
     stringEscape =
       PS.string "\\\"" $> '"'
 
+quote ∷ ∀ m. Monad m ⇒ P.ParserT String m String
+quote = PS.string "\""
+
 taggedLiteral
-  ∷ ∀ m
-  . (Monad m)
+  ∷ ∀ m a
+  . Monad m
   ⇒ String
-  → P.ParserT String m String
-taggedLiteral tag =
+  → (P.ParserT String m a)
+  → P.ParserT String m a
+taggedLiteral tag p =
   PC.try $
     PS.string tag
-      *> parens stringLiteral
+      *> parens (PC.between quote quote p)
+
+parseTime ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Time
+parseTime = do
+  hour ← parse10
+  PS.string "-"
+  minute ← parse10
+  PS.string "-"
+  second ← parse10
+  case DT.Time <$> toEnum hour <*> toEnum minute <*> toEnum second <*> bottom of
+    M.Just dt → pure dt
+    M.Nothing →
+      P.fail $ "Invalid time value " <> show hour <> "-" <> show minute <> "-" <> show second
+
+parseDate ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Date
+parseDate = do
+  year ← parse1000
+  PS.string "-"
+  month ← parse10
+  PS.string "-"
+  day ← parse10
+  case join $ DT.exactDate <$> toEnum year <*> toEnum month <*> toEnum day of
+    M.Just dt → pure dt
+    M.Nothing →
+      P.fail $ "Invalid date value " <> show year <> "-" <> show month <> "-" <> show day
+
+parseTimestamp ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.DateTime
+parseTimestamp = do
+  d ← parseDate
+  PS.string "T"
+  t ← parseTime
+  PS.string "Z"
+  pure $ DT.DateTime d t
 
 anyString
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m String
 anyString =
   A.many PS.anyChar
@@ -103,7 +142,7 @@ anyString =
 
 parseBoolean
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m Boolean
 parseBoolean =
   PC.choice
@@ -111,10 +150,7 @@ parseBoolean =
     , false <$ PS.string "false"
     ]
 
-parseDigit
-  ∷ ∀ m
-   . (Monad m)
-  ⇒ P.ParserT String m Int
+parseDigit ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
 parseDigit =
   PC.choice
     [ 0 <$ PS.string "0"
@@ -129,9 +165,25 @@ parseDigit =
     , 9 <$ PS.string "9"
     ]
 
+parse10 ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
+parse10 = parseDigit <|> (tens <$> parseDigit <*> parseDigit)
+  where
+  tens x y = x * 10 + y
+
+parse1000 ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
+parse1000
+  = (thousands <$> parseDigit <*> parseDigit <*> parseDigit <*> parseDigit)
+  <|> (hundreds <$> parseDigit <*> parseDigit <*> parseDigit)
+  <|> (tens <$> parseDigit <*> parseDigit)
+  <|> parseDigit
+  where
+  thousands x y z w = x * 1000 + y * 100 + z * 10 + w
+  hundreds x y z = x * 100 + y * 10 + z
+  tens x y = x * 10 + y
+
 many1
   ∷ ∀ m s a
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT s m a
   → P.ParserT s m (L.List a)
 many1 p =
@@ -141,7 +193,7 @@ many1 p =
 
 parseNat
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m Int
 parseNat =
   many1 parseDigit
@@ -178,14 +230,14 @@ parseSigned p =
 
 parseInt
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m Int
 parseInt =
   parseSigned parseNat
 
 parseExponent
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m Int
 parseExponent =
   (PS.string "e" <|> PS.string "E")
@@ -193,7 +245,7 @@ parseExponent =
 
 parsePositiveScientific
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m HN.HugeNum
 parsePositiveScientific = do
   let ten = HN.fromNumber 10.0
@@ -216,7 +268,7 @@ parsePositiveScientific = do
 
 parseHugeNum
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m HN.HugeNum
 parseHugeNum = do
   chars ← A.many (PS.oneOf ['0','1','2','3','4','5','6','7','8','9','-','.']) <#> S.fromCharArray
@@ -226,14 +278,14 @@ parseHugeNum = do
 
 parseScientific
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m HN.HugeNum
 parseScientific =
   parseSigned parsePositiveScientific
 
 parseDecimal
   ∷ ∀ m
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m HN.HugeNum
 parseDecimal =
   parseHugeNum
@@ -242,7 +294,7 @@ parseDecimal =
 -- | Parse one layer of structure.
 parseEJsonF
   ∷ ∀ m a
-  . (Monad m)
+  . Monad m
   ⇒ P.ParserT String m a
   → P.ParserT String m (EJsonF a)
 parseEJsonF rec =
@@ -252,11 +304,11 @@ parseEJsonF rec =
     , Decimal <$> PC.try parseDecimal
     , Integer <$> parseInt
     , String <$> stringLiteral
-    , Timestamp <$> taggedLiteral "TIMESTAMP"
-    , Time <$> taggedLiteral "TIME"
-    , Date <$> taggedLiteral "DATE"
-    , Interval <$> taggedLiteral "INTERVAL"
-    , ObjectId <$> taggedLiteral "OID"
+    , Timestamp <$> taggedLiteral "TIMESTAMP" parseTimestamp
+    , Time <$> taggedLiteral "TIME" parseTime
+    , Date <$> taggedLiteral "DATE" parseDate
+    , Interval <$> taggedLiteral "INTERVAL" stringLiteral
+    , ObjectId <$> taggedLiteral "OID" stringLiteral
     , Array <<< A.fromFoldable <$> squares (commaSep rec)
     , Map <<< A.fromFoldable <$> braces (commaSep parseAssignment)
     ]

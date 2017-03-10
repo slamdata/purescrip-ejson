@@ -7,9 +7,12 @@ module Data.Json.Extended.Signature.Gen
 import Prelude
 
 import Data.Array as A
-import Data.Json.Extended.Signature.Core (EJsonF(..))
-import Data.Tuple as T
+import Data.DateTime as DT
+import Data.Enum (toEnum)
 import Data.HugeNum as HN
+import Data.Json.Extended.Signature.Core (EJsonF(..))
+import Data.Maybe (fromMaybe)
+import Data.Tuple as T
 
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
@@ -21,9 +24,9 @@ arbitraryBaseEJsonF =
     , Integer <$> SC.arbitrary
     , Decimal <$> arbitraryDecimal
     , String <$> SC.arbitrary
-    , Timestamp <$> SC.arbitrary
-    , Date <$> SC.arbitrary
-    , Time <$> SC.arbitrary
+    , Timestamp <$> arbitraryDateTime
+    , Date <$> arbitraryDate
+    , Time <$> arbitraryTime
     , Interval <$> SC.arbitrary
     , ObjectId <$> SC.arbitrary
     , pure Null
@@ -73,3 +76,27 @@ arbitraryDecimal ∷ Gen.Gen HN.HugeNum
 arbitraryDecimal =
   HN.fromNumber
     <$> SC.arbitrary
+
+arbitraryDateTime ∷ Gen.Gen DT.DateTime
+arbitraryDateTime = DT.DateTime <$> arbitraryDate <*> arbitraryTime
+
+arbitraryDate ∷ Gen.Gen DT.Date
+arbitraryDate = do
+  year ← Gen.chooseInt 1950 2050
+  month ← Gen.chooseInt 1 12
+  day ← Gen.chooseInt 1 31
+  pure $ DT.canonicalDate
+    (fromMaybe bottom (toEnum year))
+    (fromMaybe bottom (toEnum month))
+    (fromMaybe bottom (toEnum day))
+
+arbitraryTime ∷ Gen.Gen DT.Time
+arbitraryTime = do
+  hour ← Gen.chooseInt 0 23
+  minute ← Gen.chooseInt 0 59
+  second ← Gen.chooseInt 0 59
+  pure $ DT.Time
+    (fromMaybe bottom (toEnum hour))
+    (fromMaybe bottom (toEnum minute))
+    (fromMaybe bottom (toEnum second))
+    bottom
