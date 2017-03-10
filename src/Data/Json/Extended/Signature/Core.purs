@@ -6,15 +6,16 @@ module Data.Json.Extended.Signature.Core
 import Prelude
 
 import Data.Bifunctor as BF
+import Data.DateTime as DT
 import Data.Eq (class Eq1, eq1)
 import Data.Foldable as F
-import Data.Traversable as T
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Type as JT
 import Data.List as L
 import Data.Monoid (mempty)
 import Data.Ord (class Ord1)
+import Data.Traversable as T
 import Data.Tuple (Tuple(..))
 import Data.TacitString (TacitString)
 
@@ -25,9 +26,9 @@ data EJsonF a
   | Boolean Boolean
   | Integer Int
   | Decimal HN.HugeNum
-  | Timestamp String
-  | Date String
-  | Time String
+  | Timestamp DT.DateTime
+  | Date DT.Date
+  | Time DT.Time
   | Interval String
   | ObjectId String
   | Array (Array a)

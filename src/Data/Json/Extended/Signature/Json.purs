@@ -4,19 +4,23 @@ import Prelude
 
 import Control.Alt ((<|>))
 
-import Data.Bifunctor (lmap)
 import Data.Argonaut.Core as JS
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Encode (encodeJson)
 import Data.Array as A
+import Data.Bifunctor (lmap)
+import Data.DateTime as DT
 import Data.Either as E
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Signature.Core (EJsonF(..))
+import Data.Json.Extended.Signature.Parse (parseDate, parseTime, parseTimestamp)
+import Data.Json.Extended.Signature.Render (renderDate, renderTime, renderTimestamp)
 import Data.Maybe as M
 import Data.StrMap as SM
 import Data.Traversable as TR
 import Data.Tuple as T
+import Text.Parsing.Parser as P
 
 import Matryoshka (Algebra, CoalgebraM)
 
@@ -27,9 +31,9 @@ encodeJsonEJsonF = case _ of
   Integer i → encodeJson i
   Decimal a → encodeJson $ HN.toNumber a
   String str → encodeJson str
-  Timestamp str → JS.jsonSingletonObject "$timestamp" $ encodeJson str
-  Time str → JS.jsonSingletonObject "$time" $ encodeJson str
-  Date str → JS.jsonSingletonObject "$date" $ encodeJson str
+  Timestamp dt → JS.jsonSingletonObject "$timestamp" $ encodeJson $ renderTimestamp dt
+  Time t → JS.jsonSingletonObject "$time" $ encodeJson $ renderTime t
+  Date d → JS.jsonSingletonObject "$date" $ encodeJson $ renderDate d
   Interval str → JS.jsonSingletonObject "$interval" $ encodeJson str
   ObjectId str → JS.jsonSingletonObject "$oid" $ encodeJson str
   Array xs → encodeJson xs
@@ -72,11 +76,11 @@ decodeJsonEJsonF =
     → E.Either String (EJsonF JS.Json)
   decodeObject obj =
     unwrapBranch "$obj" strMapObject obj
-    <|> unwrapLeaf "$timestamp" Timestamp obj
-    <|> unwrapLeaf "$date" Date obj
-    <|> unwrapLeaf "$time" Time obj
-    <|> unwrapLeaf "$interval" Interval obj
-    <|> unwrapLeaf "$oid" ObjectId obj
+    <|> unwrapLeaf "$timestamp" decodeTimestamp Timestamp obj
+    <|> unwrapLeaf "$date" decodeDate Date obj
+    <|> unwrapLeaf "$time" decodeTime Time obj
+    <|> unwrapLeaf "$interval" decodeJson Interval obj
+    <|> unwrapLeaf "$oid" decodeJson ObjectId obj
     <|> unwrapNull obj
     <|> (pure $ strMapObject obj)
 
@@ -112,14 +116,14 @@ decodeJsonEJsonF =
 
   unwrapLeaf
     ∷ ∀ b
-    . (DecodeJson b)
-    ⇒ String
+    . String
+    → (JS.Json → E.Either String b)
     → (b → EJsonF JS.Json)
     → JS.JObject
     → E.Either String (EJsonF JS.Json)
-  unwrapLeaf key codec =
+  unwrapLeaf key decode codec =
     getOnlyKey key
-      >=> decodeJson
+      >=> decode
       >>> map codec
 
   getOnlyKey
@@ -131,3 +135,15 @@ decodeJsonEJsonF =
       obj .? key
     keys →
       E.Left $ "Expected '" <> key <> "' to be the only key, but found: " <> show keys
+
+decodeTimestamp ∷ JS.Json → E.Either String DT.DateTime
+decodeTimestamp = decodeJson >=> \val →
+  lmap show $ P.runParser val parseTimestamp
+
+decodeDate ∷ JS.Json → E.Either String DT.Date
+decodeDate = decodeJson >=> \val →
+  lmap show $ P.runParser val parseDate
+
+decodeTime ∷ JS.Json → E.Either String DT.Time
+decodeTime = decodeJson >=> \val →
+  lmap show $ P.runParser val parseTime

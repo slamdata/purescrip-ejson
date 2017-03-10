@@ -49,6 +49,7 @@ import Control.Lazy as Lazy
 import Data.Argonaut as JS
 import Data.Array as A
 import Data.Bitraversable (bitraverse)
+import Data.DateTime as DT
 import Data.Either as E
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
@@ -61,7 +62,7 @@ import Data.StrMap as SM
 import Data.Traversable (for)
 import Data.Tuple as T
 
-import Matryoshka (embed, project, cata, anaM)
+import Matryoshka (class Corecursive, class Recursive, anaM, cata, embed, project)
 
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
@@ -71,11 +72,10 @@ import Data.Json.Extended.Signature hiding (getType) as Exports
 
 type EJson = Mu.Mu Sig.EJsonF
 
-
-decodeEJson ∷ JS.Json → E.Either String EJson
+decodeEJson :: forall t. Corecursive t Sig.EJsonF ⇒ JS.Json → E.Either String t
 decodeEJson = anaM Sig.decodeJsonEJsonF
 
-encodeEJson ∷ EJson → JS.Json
+encodeEJson :: forall t. Recursive t Sig.EJsonF ⇒ t -> JS.Json
 encodeEJson = cata Sig.encodeJsonEJsonF
 
 arbitraryEJsonOfSize
@@ -105,120 +105,118 @@ renderEJson ∷ EJson → String
 renderEJson =
   cata Sig.renderEJsonF
 
-
 -- | A closed parser of SQL^2 constant expressions
-parseEJson ∷ ∀ m. (Monad m) ⇒ P.ParserT String m EJson
+parseEJson ∷ ∀ m. Monad m ⇒ P.ParserT String m EJson
 parseEJson =
   Lazy.fix \f →
     embed <$>
       Sig.parseEJsonF f
 
-
-null ∷ EJson
+null ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ t
 null = embed Sig.Null
 
-boolean ∷ Boolean → EJson
+boolean ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Boolean → t
 boolean = embed <<< Sig.Boolean
 
-integer ∷ Int → EJson
+integer ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Int → t
 integer = embed <<< Sig.Integer
 
-decimal ∷ HN.HugeNum → EJson
+decimal ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ HN.HugeNum → t
 decimal = embed <<< Sig.Decimal
 
-string ∷ String → EJson
+string ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ String → t
 string = embed <<< Sig.String
 
-timestamp ∷ String → EJson
+timestamp ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ DT.DateTime → t
 timestamp = embed <<< Sig.Timestamp
 
-date ∷ String → EJson
+date ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ DT.Date → t
 date = embed <<< Sig.Date
 
-time ∷ String → EJson
+time ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ DT.Time → t
 time = embed <<< Sig.Time
 
-interval ∷ String → EJson
+interval ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ String → t
 interval = embed <<< Sig.Interval
 
-objectId ∷ String → EJson
+objectId ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ String → t
 objectId = embed <<< Sig.ObjectId
 
-array ∷ Array EJson → EJson
+array ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Array t → t
 array = embed <<< Sig.Array
 
-map ∷ Map.Map EJson EJson → EJson
+map ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Map.Map t t → t
 map = embed <<< Sig.Map <<< A.fromFoldable <<< Map.toList
 
-map' ∷ SM.StrMap EJson → EJson
+map' ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ SM.StrMap t → t
 map' = embed <<< Sig.Map <<< F.map go <<< A.fromFoldable <<< SM.toList
   where
     go (T.Tuple a b) = T.Tuple (string a) b
 
-getType ∷ EJson → EJsonType
+getType ∷ ∀ t. Recursive t Sig.EJsonF ⇒ t → EJsonType
 getType = Sig.getType <<< project
 
-_Null ∷ Prism' EJson Unit
+_Null ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t Unit
 _Null = prism' (const null) $ project >>> case _ of
   Sig.Null → M.Just unit
   _ → M.Nothing
 
-_String ∷ Prism' EJson String
+_String ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t String
 _String = prism' string $ project >>> case _ of
   Sig.String s → M.Just s
   _ → M.Nothing
 
-_Boolean ∷ Prism' EJson Boolean
+_Boolean ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t Boolean
 _Boolean = prism' boolean $ project >>> case _ of
   Sig.Boolean b → M.Just b
   _ → M.Nothing
 
-_Integer ∷ Prism' EJson Int
+_Integer ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t Int
 _Integer = prism' integer $ project >>> case _ of
   Sig.Integer i → M.Just i
   _ → M.Nothing
 
-_Decimal ∷ Prism' EJson HN.HugeNum
+_Decimal ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t HN.HugeNum
 _Decimal = prism' decimal $ project >>> case _ of
   Sig.Decimal d → M.Just d
   _ → M.Nothing
 
-_Timestamp ∷ Prism' EJson String
+_Timestamp ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t DT.DateTime
 _Timestamp = prism' timestamp $ project >>> case _ of
   Sig.Timestamp t → M.Just t
   _ → M.Nothing
 
-_Date ∷ Prism' EJson String
+_Date ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t DT.Date
 _Date = prism' date $ project >>> case _ of
   Sig.Date d → M.Just d
   _ → M.Nothing
 
-_Time ∷ Prism' EJson String
+_Time ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t DT.Time
 _Time = prism' time $ project >>> case _ of
   Sig.Time t → M.Just t
   _ → M.Nothing
 
-_Interval ∷ Prism' EJson String
+_Interval ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t String
 _Interval = prism' interval $ project >>> case _ of
   Sig.Interval i → M.Just i
   _ → M.Nothing
 
-_ObjectId ∷ Prism' EJson String
+_ObjectId ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t String
 _ObjectId = prism' objectId $ project >>> case _ of
   Sig.ObjectId id → M.Just id
   _ → M.Nothing
 
-_Array ∷ Prism' EJson (Array EJson)
+_Array ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t (Array t)
 _Array = prism' array $ project >>> case _ of
   Sig.Array xs → M.Just xs
   _ → M.Nothing
 
-_Map ∷ Prism' EJson (Map.Map EJson EJson)
+_Map ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF, Ord t) ⇒ Prism' t (Map.Map t t)
 _Map = prism' map $ project >>> case _ of
   Sig.Map kvs → M.Just $ Map.fromFoldable kvs
   _ → M.Nothing
 
-_Map' ∷ Prism' EJson (SM.StrMap EJson)
+_Map' ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t (SM.StrMap t)
 _Map' = prism' map' $ project >>> case _ of
   Sig.Map kvs → SM.fromFoldable <$> for kvs (bitraverse (preview _String) pure)
   _ → M.Nothing
