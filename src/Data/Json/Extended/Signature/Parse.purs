@@ -66,28 +66,20 @@ commaSep =
       *> PS.string ","
       <* PS.skipSpaces
 
-stringLiteral
-  ∷ ∀ m
-  . Monad m
-  ⇒ P.ParserT String m String
-stringLiteral =
-  PC.between quote quote (A.many stringChar)
-    <#> S.fromCharArray
+stringLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
+stringLiteral = quoted stringInner
 
+stringInner ∷ ∀ m . Monad m ⇒ P.ParserT String m String
+stringInner = A.many stringChar <#> S.fromCharArray
   where
-    stringChar =
-      PC.try stringEscape
-        <|> stringLetter
+  stringChar = PC.try stringEscape <|> stringLetter
+  stringLetter = PS.satisfy (_ /= '"')
+  stringEscape = PS.string "\\\"" $> '"'
 
-    stringLetter =
-      PS.satisfy \c →
-        c /= '"'
-
-    stringEscape =
-      PS.string "\\\"" $> '"'
-
-quote ∷ ∀ m. Monad m ⇒ P.ParserT String m String
-quote = PS.string "\""
+quoted ∷ ∀ a m. Monad m ⇒ P.ParserT String m a → P.ParserT String m a
+quoted = PC.between quote quote
+  where
+  quote = PS.string "\""
 
 taggedLiteral
   ∷ ∀ m a
@@ -98,7 +90,7 @@ taggedLiteral
 taggedLiteral tag p =
   PC.try $
     PS.string tag
-      *> parens (PC.between quote quote p)
+      *> parens (quoted p)
 
 parseTime ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Time
 parseTime = do
@@ -307,8 +299,8 @@ parseEJsonF rec =
     , Timestamp <$> taggedLiteral "TIMESTAMP" parseTimestamp
     , Time <$> taggedLiteral "TIME" parseTime
     , Date <$> taggedLiteral "DATE" parseDate
-    , Interval <$> taggedLiteral "INTERVAL" stringLiteral
-    , ObjectId <$> taggedLiteral "OID" stringLiteral
+    , Interval <$> taggedLiteral "INTERVAL" stringInner
+    , ObjectId <$> taggedLiteral "OID" stringInner
     , Array <<< A.fromFoldable <$> squares (commaSep rec)
     , Map <<< A.fromFoldable <$> braces (commaSep parseAssignment)
     ]
