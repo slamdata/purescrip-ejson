@@ -103,14 +103,14 @@ taggedLiteral tag p =
 parseTime ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Time
 parseTime = do
   hour ← parse10
-  PS.string "-"
+  PS.string ":"
   minute ← parse10
-  PS.string "-"
+  PS.string ":"
   second ← parse10
-  case DT.Time <$> toEnum hour <*> toEnum minute <*> toEnum second <*> bottom of
+  case DT.Time <$> toEnum hour <*> toEnum minute <*> toEnum second <*> pure bottom of
     M.Just dt → pure dt
     M.Nothing →
-      P.fail $ "Invalid time value " <> show hour <> "-" <> show minute <> "-" <> show second
+      P.fail $ "Invalid time value " <> show hour <> ":" <> show minute <> ":" <> show second
 
 parseDate ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Date
 parseDate = do
@@ -166,7 +166,7 @@ parseDigit =
     ]
 
 parse10 ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
-parse10 = parseDigit <|> (tens <$> parseDigit <*> parseDigit)
+parse10 = (tens <$> parseDigit <*> parseDigit) <|> parseDigit
   where
   tens x y = x * 10 + y
 
