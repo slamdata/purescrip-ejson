@@ -1,8 +1,20 @@
 module Data.Json.Extended.Signature.Parse
   ( parseEJsonF
+  , parseNull
+  , parseBooleanLiteral
+  , parseDecimalLiteral
+  , parseIntLiteral
+  , parseStringLiteral
+  , parseTimestampLiteral
   , parseTimestamp
-  , parseDate
+  , parseTimeLiteral
   , parseTime
+  , parseDateLiteral
+  , parseDate
+  , parseIntervalLiteral
+  , parseObjectIdLiteral
+  , parseArrayLiteral
+  , parseMapLiteral
   ) where
 
 import Prelude
@@ -66,9 +78,6 @@ commaSep =
       *> PS.string ","
       <* PS.skipSpaces
 
-stringLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
-stringLiteral = quoted stringInner
-
 stringInner ∷ ∀ m . Monad m ⇒ P.ParserT String m String
 stringInner = A.many stringChar <#> S.fromCharArray
   where
@@ -92,6 +101,8 @@ taggedLiteral tag p =
     PS.string tag
       *> parens (quoted p)
 
+-- | Parses time _values_ of the form `HH:mm:SS`. For the EJson time literal
+-- | `TIME("HH:mm:SS")` use `parseTimeLiteral`.
 parseTime ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Time
 parseTime = do
   hour ← parse10
@@ -104,6 +115,8 @@ parseTime = do
     M.Nothing →
       P.fail $ "Invalid time value " <> show hour <> ":" <> show minute <> ":" <> show second
 
+-- | Parses date _values_ of the form `YYYY-MM-DD`. For the EJson date literal
+-- | `DATE("YYYY-MM-DD")` use `parseDateLiteral`.
 parseDate ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Date
 parseDate = do
   year ← parse1000
@@ -116,6 +129,9 @@ parseDate = do
     M.Nothing →
       P.fail $ "Invalid date value " <> show year <> "-" <> show month <> "-" <> show day
 
+-- | Parses timestamp _values_ of the form `YYYY-MM-DDTHH:mm:SSZ`. For the
+-- | EJson timestamp literal `TIMESTAMP("YYYY-MM-DDTHH:mm:SSZ")` use
+-- | `parseTimestampLiteral`.
 parseTimestamp ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.DateTime
 parseTimestamp = do
   d ← parseDate
@@ -131,19 +147,6 @@ anyString
 anyString =
   A.many PS.anyChar
     <#> S.fromCharArray
-
-parseNull ∷ ∀ m. Monad m ⇒ P.ParserT String m Unit
-parseNull = PS.string "null" $> unit
-
-parseBoolean
-  ∷ ∀ m
-  . Monad m
-  ⇒ P.ParserT String m Boolean
-parseBoolean =
-  PC.choice
-    [ true <$ PS.string "true"
-    , false <$ PS.string "false"
-    ]
 
 parseDigit ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
 parseDigit =
@@ -223,20 +226,13 @@ parseSigned p =
   parseNegative p
     <|> parsePositive p
 
-parseInt
-  ∷ ∀ m
-  . Monad m
-  ⇒ P.ParserT String m Int
-parseInt =
-  parseSigned parseNat
-
 parseExponent
   ∷ ∀ m
   . Monad m
   ⇒ P.ParserT String m Int
 parseExponent =
   (PS.string "e" <|> PS.string "E")
-    *> parseInt
+    *> parseIntLiteral
 
 parsePositiveScientific
   ∷ ∀ m
@@ -278,13 +274,50 @@ parseScientific
 parseScientific =
   parseSigned parsePositiveScientific
 
-parseDecimal
-  ∷ ∀ m
-  . Monad m
-  ⇒ P.ParserT String m HN.HugeNum
-parseDecimal =
-  parseHugeNum
-    <|> parseScientific
+parseNull ∷ ∀ m. Monad m ⇒ P.ParserT String m Unit
+parseNull = PS.string "null" $> unit
+
+parseBooleanLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m Boolean
+parseBooleanLiteral =
+  PC.choice
+    [ true <$ PS.string "true"
+    , false <$ PS.string "false"
+    ]
+
+parseDecimalLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m HN.HugeNum
+parseDecimalLiteral = parseHugeNum <|> parseScientific
+
+parseIntLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
+parseIntLiteral = parseSigned parseNat
+
+parseStringLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
+parseStringLiteral = quoted stringInner
+
+parseTimestampLiteral :: forall m. Monad m => P.ParserT String m DT.DateTime
+parseTimestampLiteral = taggedLiteral "TIMESTAMP" parseTimestamp
+
+parseTimeLiteral :: forall m. Monad m => P.ParserT String m DT.Time
+parseTimeLiteral = taggedLiteral "TIME" parseTime
+
+parseDateLiteral :: forall m. Monad m => P.ParserT String m DT.Date
+parseDateLiteral = taggedLiteral "DATE" parseDate
+
+parseIntervalLiteral :: forall m. Monad m => P.ParserT String m String
+parseIntervalLiteral = taggedLiteral "INTERVAL" stringInner
+
+parseObjectIdLiteral :: forall m. Monad m => P.ParserT String m String
+parseObjectIdLiteral = taggedLiteral "OID" stringInner
+
+parseArrayLiteral :: forall a m. Monad m => P.ParserT String m a -> P.ParserT String m (Array a)
+parseArrayLiteral p = A.fromFoldable <$> squares (commaSep p)
+
+parseMapLiteral :: forall a m. Monad m => P.ParserT String m a -> P.ParserT String m (EJsonMap a)
+parseMapLiteral p = EJsonMap <<< A.fromFoldable <$> braces (commaSep parseAssignment)
+  where
+  parseColon ∷ P.ParserT String m String
+  parseColon = PS.skipSpaces *> PS.string ":" <* PS.skipSpaces
+  parseAssignment ∷ P.ParserT String m (T.Tuple a a)
+  parseAssignment = T.Tuple <$> p <* parseColon <*> p
 
 -- | Parse one layer of structure.
 parseEJsonF
@@ -295,28 +328,15 @@ parseEJsonF
 parseEJsonF rec =
   PC.choice $
     [ Null <$ parseNull
-    , Boolean <$> parseBoolean
-    , Decimal <$> PC.try parseDecimal
-    , Integer <$> parseInt
-    , String <$> stringLiteral
-    , Timestamp <$> taggedLiteral "TIMESTAMP" parseTimestamp
-    , Time <$> taggedLiteral "TIME" parseTime
-    , Date <$> taggedLiteral "DATE" parseDate
-    , Interval <$> taggedLiteral "INTERVAL" stringInner
-    , ObjectId <$> taggedLiteral "OID" stringInner
-    , Array <<< A.fromFoldable <$> squares (commaSep rec)
-    , Map <<< EJsonMap <<< A.fromFoldable <$> braces (commaSep parseAssignment)
+    , Boolean <$> parseBooleanLiteral
+    , Decimal <$> PC.try parseDecimalLiteral
+    , Integer <$> parseIntLiteral
+    , String <$> parseStringLiteral
+    , Timestamp <$> parseTimestampLiteral
+    , Time <$> parseTimeLiteral
+    , Date <$> parseDateLiteral
+    , Interval <$> parseIntervalLiteral
+    , ObjectId <$> parseObjectIdLiteral
+    , Array <$> parseArrayLiteral rec
+    , Map <$> parseMapLiteral rec
     ]
-
-  where
-    parseColon ∷ P.ParserT String m String
-    parseColon =
-      PS.skipSpaces
-        *> PS.string ":"
-        <* PS.skipSpaces
-
-    parseAssignment ∷ P.ParserT String m (T.Tuple a a)
-    parseAssignment =
-      T.Tuple
-        <$> rec <* parseColon
-        <*> rec
