@@ -146,10 +146,10 @@ array ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Array t → t
 array = embed <<< Sig.Array
 
 map ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Map.Map t t → t
-map = embed <<< Sig.Map <<< A.fromFoldable <<< Map.toList
+map = embed <<< Sig.Map <<< Sig.EJsonMap <<< A.fromFoldable <<< Map.toList
 
 map' ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ SM.StrMap t → t
-map' = embed <<< Sig.Map <<< F.map go <<< A.fromFoldable <<< SM.toList
+map' = embed <<< Sig.Map <<< Sig.EJsonMap <<< F.map go <<< A.fromFoldable <<< SM.toList
   where
     go (T.Tuple a b) = T.Tuple (string a) b
 
@@ -213,10 +213,10 @@ _Array = prism' array $ project >>> case _ of
 
 _Map ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF, Ord t) ⇒ Prism' t (Map.Map t t)
 _Map = prism' map $ project >>> case _ of
-  Sig.Map kvs → M.Just $ Map.fromFoldable kvs
+  Sig.Map (Sig.EJsonMap kvs) → M.Just $ Map.fromFoldable kvs
   _ → M.Nothing
 
 _Map' ∷ ∀ t. (Corecursive t Sig.EJsonF, Recursive t Sig.EJsonF) ⇒ Prism' t (SM.StrMap t)
 _Map' = prism' map' $ project >>> case _ of
-  Sig.Map kvs → SM.fromFoldable <$> for kvs (bitraverse (preview _String) pure)
+  Sig.Map (Sig.EJsonMap kvs) → SM.fromFoldable <$> for kvs (bitraverse (preview _String) pure)
   _ → M.Nothing

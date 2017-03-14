@@ -105,7 +105,7 @@ set cur x v = case lmap project <$> peel cur of
 -- | ```
 getKey ∷ EJ.EJson → EJ.EJson → Maybe EJ.EJson
 getKey k v = case project v of
-  EJ.Map fields → lookup k fields
+  EJ.Map (EJ.EJsonMap fields) → lookup k fields
   _ → Nothing
 
 -- | For a given key, attempts to set a new value for it in an EJson Map. If the
@@ -120,8 +120,8 @@ getKey k v = case project v of
 -- | ```
 setKey ∷ EJ.EJson → EJ.EJson → EJ.EJson → EJ.EJson
 setKey k x v = case project v of
-  EJ.Map fields →
-    embed <<< EJ.Map $ map
+  EJ.Map (EJ.EJsonMap fields) →
+    embed <<< EJ.Map <<< EJ.EJsonMap $ map
       (\(kv@(Tuple k' v)) → if k == k' then Tuple k x else kv) fields
   _ → v
 

@@ -10,7 +10,7 @@ import Data.Array as A
 import Data.DateTime as DT
 import Data.Enum (toEnum)
 import Data.HugeNum as HN
-import Data.Json.Extended.Signature.Core (EJsonF(..))
+import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.Maybe (fromMaybe)
 import Data.Tuple as T
 
@@ -42,7 +42,7 @@ arbitraryEJsonFWithKeyGen keyGen rec =
   Gen.oneOf (pure Null)
     [ arbitraryBaseEJsonF
     , Array <$> Gen.arrayOf rec
-    , Map <$> do
+    , Map <<< EJsonMap <$> do
         keys ← distinctArrayOf keyGen
         vals ← Gen.vectorOf (A.length keys) rec
         pure $ A.zip keys vals
