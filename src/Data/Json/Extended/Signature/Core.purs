@@ -13,11 +13,12 @@ import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Type as JT
 import Data.List as L
+import Data.Map as M
 import Data.Monoid (mempty)
-import Data.Ord (class Ord1)
+import Data.Ord (class Ord1, compare1)
+import Data.TacitString (TacitString)
 import Data.Traversable as T
 import Data.Tuple (Tuple(..))
-import Data.TacitString (TacitString)
 
 -- | The signature endofunctor for the EJson theory.
 data EJsonF a
@@ -80,6 +81,7 @@ instance traversableEJsonF ∷ T.Traversable EJsonF where
     ObjectId oid → pure $ ObjectId oid
   sequence = T.sequenceDefault
 
+-- Note: this cannot be derived due to integer/decimal equality and map equality
 instance eq1EJsonF ∷ Eq1 EJsonF where
   eq1 Null Null = true
   eq1 (Boolean b1) (Boolean b2) = b1 == b2
@@ -127,9 +129,59 @@ intToHugeNum =
   HN.fromNumber
     <<< Int.toNumber
 
-derive instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a)
+instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a) where
+  compare = compare1
+
+-- Note: this cannot be derived, due to integer/decimal comparisons and map
+-- comparisons
 instance ord1EJsonF ∷ Ord1 EJsonF where
-  compare1 = compare
+  compare1 Null Null = EQ
+  compare1 _ Null = GT
+  compare1 Null _ = LT
+
+  compare1 (Boolean b1) (Boolean b2) = compare b1 b2
+  compare1 _ (Boolean _) = GT
+  compare1 (Boolean _) _ = LT
+
+  compare1 (Integer i) (Integer j) = compare i j
+  compare1 (Integer i) (Decimal b) = compare (intToHugeNum i) b
+  compare1 (Decimal a) (Integer j) = compare a (intToHugeNum j)
+  compare1 _ (Integer _) = GT
+  compare1 (Integer _) _ = LT
+
+  compare1 (Decimal a) (Decimal b) = compare a b
+  compare1 _ (Decimal _) = GT
+  compare1 (Decimal _) _ = LT
+
+  compare1 (String a) (String b) = compare a b
+  compare1 _ (String _) = GT
+  compare1 (String _) _ = LT
+
+  compare1 (Timestamp a) (Timestamp b) = compare a b
+  compare1 _ (Timestamp _) = GT
+  compare1 (Timestamp _) _ = LT
+
+  compare1 (Date a) (Date b) = compare a b
+  compare1 _ (Date _) = GT
+  compare1 (Date _) _ = LT
+
+  compare1 (Time a) (Time b) = compare a b
+  compare1 _ (Time _) = GT
+  compare1 (Time _) _ = LT
+
+  compare1 (Interval a) (Interval b) = compare a b
+  compare1 _ (Interval _) = GT
+  compare1 (Interval _) _ = LT
+
+  compare1 (ObjectId a) (ObjectId b) = compare a b
+  compare1 _ (ObjectId _) = GT
+  compare1 (ObjectId _) _ = LT
+
+  compare1 (Array a) (Array b) = compare a b
+  compare1 _ (Array _) = GT
+  compare1 (Array _) _ = LT
+
+  compare1 (Map a) (Map b) = compare (M.fromFoldable a) (M.fromFoldable b)
 
 instance showEJsonF ∷ Show (EJsonF TacitString) where
   show = case _ of
