@@ -12,7 +12,7 @@ import Data.Either (fromRight)
 import Data.Enum (class BoundedEnum, fromEnum)
 import Data.Foldable as F
 import Data.HugeNum as HN
-import Data.Json.Extended.Signature.Core (EJsonF(..))
+import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.String.Regex as RX
 import Data.String.Regex.Flags as RXF
 import Data.Tuple as T
@@ -34,7 +34,7 @@ renderEJsonF = case _ of
   Interval str → tagged "INTERVAL" str
   ObjectId str → tagged "OID" str
   Array ds → squares $ commaSep ds
-  Map ds → braces $ renderPairs ds
+  Map (EJsonMap ds) → braces $ renderPairs ds
 
 tagged ∷ String → String → String
 tagged tag str =

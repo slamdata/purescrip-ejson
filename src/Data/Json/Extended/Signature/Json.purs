@@ -13,7 +13,7 @@ import Data.DateTime as DT
 import Data.Either as E
 import Data.HugeNum as HN
 import Data.Int as Int
-import Data.Json.Extended.Signature.Core (EJsonF(..))
+import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.Json.Extended.Signature.Parse (parseDate, parseTime, parseTimestamp)
 import Data.Json.Extended.Signature.Render (renderDate, renderTime, renderTimestamp)
 import Data.Maybe as M
@@ -37,7 +37,7 @@ encodeJsonEJsonF = case _ of
   Interval str → JS.jsonSingletonObject "$interval" $ encodeJson str
   ObjectId str → JS.jsonSingletonObject "$oid" $ encodeJson str
   Array xs → encodeJson xs
-  Map xs → JS.jsonSingletonObject "$obj" $ encodeJson $ asStrMap xs
+  Map (EJsonMap xs) → JS.jsonSingletonObject "$obj" $ encodeJson $ asStrMap xs
   where
   tuple
     ∷ T.Tuple JS.Json JS.Json
@@ -89,6 +89,7 @@ decodeJsonEJsonF =
     → EJsonF JS.Json
   strMapObject =
     Map
+    <<< EJsonMap
     <<< A.fromFoldable
     <<< map (lmap encodeJson)
     <<< SM.toList

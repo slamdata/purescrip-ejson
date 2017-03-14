@@ -15,7 +15,7 @@ import Data.Enum (toEnum)
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Int as Int
-import Data.Json.Extended.Signature.Core (EJsonF(..))
+import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.List as L
 import Data.Maybe as M
 import Data.String as S
@@ -131,6 +131,9 @@ anyString
 anyString =
   A.many PS.anyChar
     <#> S.fromCharArray
+
+parseNull ∷ ∀ m. Monad m ⇒ P.ParserT String m Unit
+parseNull = PS.string "null" $> unit
 
 parseBoolean
   ∷ ∀ m
@@ -291,7 +294,7 @@ parseEJsonF
   → P.ParserT String m (EJsonF a)
 parseEJsonF rec =
   PC.choice $
-    [ Null <$ PS.string "null"
+    [ Null <$ parseNull
     , Boolean <$> parseBoolean
     , Decimal <$> PC.try parseDecimal
     , Integer <$> parseInt
@@ -302,7 +305,7 @@ parseEJsonF rec =
     , Interval <$> taggedLiteral "INTERVAL" stringInner
     , ObjectId <$> taggedLiteral "OID" stringInner
     , Array <<< A.fromFoldable <$> squares (commaSep rec)
-    , Map <<< A.fromFoldable <$> braces (commaSep parseAssignment)
+    , Map <<< EJsonMap <<< A.fromFoldable <$> braces (commaSep parseAssignment)
     ]
 
   where

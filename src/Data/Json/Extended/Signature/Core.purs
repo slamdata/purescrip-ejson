@@ -1,5 +1,6 @@
 module Data.Json.Extended.Signature.Core
   ( EJsonF(..)
+  , EJsonMap(..)
   , getType
   ) where
 
@@ -7,15 +8,15 @@ import Prelude
 
 import Data.Bifunctor as BF
 import Data.DateTime as DT
-import Data.Eq (class Eq1, eq1)
+import Data.Eq (class Eq1)
 import Data.Foldable as F
 import Data.HugeNum as HN
-import Data.Int as Int
 import Data.Json.Extended.Type as JT
 import Data.List as L
 import Data.Map as M
 import Data.Monoid (mempty)
-import Data.Ord (class Ord1, compare1)
+import Data.Newtype (class Newtype)
+import Data.Ord (class Ord1)
 import Data.TacitString (TacitString)
 import Data.Traversable as T
 import Data.Tuple (Tuple(..))
@@ -33,42 +34,34 @@ data EJsonF a
   | Interval String
   | ObjectId String
   | Array (Array a)
-  | Map (Array (Tuple a a))
+  | Map (EJsonMap a)
 
-instance functorEJsonF ∷ Functor EJsonF where
-  map f x =
-    case x of
-      Null → Null
-      String str → String str
-      Boolean b → Boolean b
-      Integer i → Integer i
-      Decimal a → Decimal a
-      Timestamp ts → Timestamp ts
-      Date d → Date d
-      Time t → Time t
-      Interval i → Interval i
-      ObjectId oid → ObjectId oid
-      Array xs → Array $ f <$> xs
-      Map xs → Map $ BF.bimap f f <$> xs
+derive instance functorEJsonF ∷ Functor EJsonF
+
+derive instance eqEJsonF ∷ Eq a ⇒ Eq (EJsonF a)
+instance eq1EJsonF ∷ Eq1 EJsonF where eq1 = eq
+
+derive instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a)
+instance ord1EJsonF ∷ Ord1 EJsonF where compare1 = compare
 
 instance foldableEJsonF ∷ F.Foldable EJsonF where
   foldMap f = case _ of
     Array xs → F.foldMap f xs
-    Map xs → F.foldMap (\(Tuple k v) → f k <> f v) xs
+    Map xs → F.foldMap f xs
     _ → mempty
   foldl f a = case _ of
     Array xs → F.foldl f a xs
-    Map xs → F.foldl (\acc (Tuple k v) → f (f acc k) v) a xs
+    Map xs → F.foldl f a xs
     _ → a
   foldr f a = case _ of
     Array xs → F.foldr f a xs
-    Map xs → F.foldr (\(Tuple k v) acc → f k $ f v acc) a xs
+    Map xs → F.foldr f a xs
     _ → a
 
 instance traversableEJsonF ∷ T.Traversable EJsonF where
   traverse f = case _ of
-    Array xs → map Array $ T.traverse f xs
-    Map xs → map Map $ T.traverse (\(Tuple k v) → Tuple <$> f k <*> f v) xs
+    Array xs → Array <$> T.traverse f xs
+    Map xs → Map <$> T.traverse f xs
     Null → pure Null
     String str → pure $ String str
     Boolean b → pure $ Boolean b
@@ -80,108 +73,6 @@ instance traversableEJsonF ∷ T.Traversable EJsonF where
     Interval i → pure $ Interval i
     ObjectId oid → pure $ ObjectId oid
   sequence = T.sequenceDefault
-
--- Note: this cannot be derived due to integer/decimal equality and map equality
-instance eq1EJsonF ∷ Eq1 EJsonF where
-  eq1 Null Null = true
-  eq1 (Boolean b1) (Boolean b2) = b1 == b2
-  eq1 (Integer i) (Integer j) = i == j
-  eq1 (Decimal a) (Decimal b) = a == b
-  eq1 (Integer i) (Decimal b) = intToHugeNum i == b
-  eq1 (Decimal a) (Integer j) = a == intToHugeNum j
-  eq1 (String a) (String b) = a == b
-  eq1 (Timestamp a) (Timestamp b) = a == b
-  eq1 (Date a) (Date b) = a == b
-  eq1 (Time a) (Time b) = a == b
-  eq1 (Interval a) (Interval b) = a == b
-  eq1 (ObjectId a) (ObjectId b) = a == b
-  eq1 (Array xs) (Array ys) = xs == ys
-  eq1 (Map xs) (Map ys) =
-    let
-      xs' = L.fromFoldable xs
-      ys' = L.fromFoldable ys
-    in
-      isSubobject xs' ys'
-        && isSubobject ys' xs'
-  eq1 _ _ = false
-
-instance eqEJsonF ∷ Eq a ⇒ Eq (EJsonF a) where
-  eq = eq1
-
--- | Very badly performing, but we don't have access to Ord here,
--- | so the performant version is not implementable.
-isSubobject
-  ∷ ∀ a b
-  . (Eq a, Eq b)
-  ⇒ L.List (Tuple a b)
-  → L.List (Tuple a b)
-  → Boolean
-isSubobject xs ys =
-  F.foldl
-    (\acc x → acc && F.elem x ys)
-    true
-    xs
-
-intToHugeNum
-  ∷ Int
-  → HN.HugeNum
-intToHugeNum =
-  HN.fromNumber
-    <<< Int.toNumber
-
-instance ordEJsonF ∷ Ord a ⇒ Ord (EJsonF a) where
-  compare = compare1
-
--- Note: this cannot be derived, due to integer/decimal comparisons and map
--- comparisons
-instance ord1EJsonF ∷ Ord1 EJsonF where
-  compare1 Null Null = EQ
-  compare1 _ Null = GT
-  compare1 Null _ = LT
-
-  compare1 (Boolean b1) (Boolean b2) = compare b1 b2
-  compare1 _ (Boolean _) = GT
-  compare1 (Boolean _) _ = LT
-
-  compare1 (Integer i) (Integer j) = compare i j
-  compare1 (Integer i) (Decimal b) = compare (intToHugeNum i) b
-  compare1 (Decimal a) (Integer j) = compare a (intToHugeNum j)
-  compare1 _ (Integer _) = GT
-  compare1 (Integer _) _ = LT
-
-  compare1 (Decimal a) (Decimal b) = compare a b
-  compare1 _ (Decimal _) = GT
-  compare1 (Decimal _) _ = LT
-
-  compare1 (String a) (String b) = compare a b
-  compare1 _ (String _) = GT
-  compare1 (String _) _ = LT
-
-  compare1 (Timestamp a) (Timestamp b) = compare a b
-  compare1 _ (Timestamp _) = GT
-  compare1 (Timestamp _) _ = LT
-
-  compare1 (Date a) (Date b) = compare a b
-  compare1 _ (Date _) = GT
-  compare1 (Date _) _ = LT
-
-  compare1 (Time a) (Time b) = compare a b
-  compare1 _ (Time _) = GT
-  compare1 (Time _) _ = LT
-
-  compare1 (Interval a) (Interval b) = compare a b
-  compare1 _ (Interval _) = GT
-  compare1 (Interval _) _ = LT
-
-  compare1 (ObjectId a) (ObjectId b) = compare a b
-  compare1 _ (ObjectId _) = GT
-  compare1 (ObjectId _) _ = LT
-
-  compare1 (Array a) (Array b) = compare a b
-  compare1 _ (Array _) = GT
-  compare1 (Array _) _ = LT
-
-  compare1 (Map a) (Map b) = compare (M.fromFoldable a) (M.fromFoldable b)
 
 instance showEJsonF ∷ Show (EJsonF TacitString) where
   show = case _ of
@@ -212,3 +103,41 @@ getType = case _ of
   ObjectId _ → JT.ObjectId
   Array _ → JT.Array
   Map _ → JT.Map
+
+newtype EJsonMap a = EJsonMap (Array (Tuple a a))
+
+derive instance newtypeEJsonMap ∷ Newtype (EJsonMap a) _
+
+instance functorEJsonMap ∷ Functor EJsonMap where
+  map f (EJsonMap xs) = EJsonMap (BF.bimap f f <$> xs)
+
+instance eqEJsonMap ∷ Eq a ⇒ Eq (EJsonMap a) where
+  eq (EJsonMap xs) (EJsonMap ys) =
+    let
+      xs' = L.fromFoldable xs
+      ys' = L.fromFoldable ys
+    in
+      isSubobject xs' ys'
+        && isSubobject ys' xs'
+
+-- | Very badly performing, but we don't have access to Ord here,
+-- | so the performant version is not implementable.
+isSubobject ∷ ∀ a. Eq a ⇒ L.List (Tuple a a) → L.List (Tuple a a) → Boolean
+isSubobject xs ys = F.foldl (\acc x → acc && F.elem x ys) true xs
+
+instance ordEJsonMap ∷ Ord a ⇒ Ord (EJsonMap a) where
+  compare (EJsonMap xs) (EJsonMap ys) =
+    compare (M.fromFoldable xs) (M.fromFoldable ys)
+
+instance showEJsonMap ∷ Show (EJsonMap TacitString) where
+  show (EJsonMap xs) = "(EJsonMap " <> show xs <> ")"
+
+instance foldableEJsonMap ∷ F.Foldable EJsonMap where
+  foldMap f (EJsonMap xs) = F.foldMap (\(Tuple k v) → f k <> f v) xs
+  foldl f a (EJsonMap xs) = F.foldl (\acc (Tuple k v) → f (f acc k) v) a xs
+  foldr f a (EJsonMap xs) = F.foldr (\(Tuple k v) acc → f k $ f v acc) a xs
+
+instance traversableEJsonMap ∷ T.Traversable EJsonMap where
+  traverse f (EJsonMap xs) =
+    EJsonMap <$> T.traverse (\(Tuple k v) → Tuple <$> f k <*> f v) xs
+  sequence = T.sequenceDefault
