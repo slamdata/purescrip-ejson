@@ -21,7 +21,6 @@ module Data.Json.Extended
   , encodeEJson
 
   , arbitraryEJsonOfSize
-  , arbitraryJsonEncodableEJsonOfSize
 
   , getType
 
@@ -42,15 +41,12 @@ module Data.Json.Extended
 
 import Prelude hiding (map)
 
-import Data.Functor as F
-
-import Control.Lazy as Lazy
-
 import Data.Argonaut as JS
 import Data.Array as A
 import Data.Bitraversable (bitraverse)
 import Data.DateTime as DT
 import Data.Either as E
+import Data.Functor as F
 import Data.Functor.Mu as Mu
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
@@ -64,7 +60,6 @@ import Data.Tuple as T
 
 import Matryoshka (class Corecursive, class Recursive, anaM, cata, embed, project)
 
-import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
 import Text.Parsing.Parser as P
 
@@ -72,16 +67,26 @@ import Data.Json.Extended.Signature hiding (getType) as Exports
 
 type EJson = Mu.Mu Sig.EJsonF
 
-decodeEJson :: forall t. Corecursive t Sig.EJsonF ⇒ JS.Json → E.Either String t
+decodeEJson ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ JS.Json → E.Either String t
 decodeEJson = anaM Sig.decodeJsonEJsonF
 
-encodeEJson :: forall t. Recursive t Sig.EJsonF ⇒ t -> JS.Json
+encodeEJson ∷ ∀ t. Recursive t Sig.EJsonF ⇒ t → JS.Json
 encodeEJson = cata Sig.encodeJsonEJsonF
 
+arbitraryEJsonOfSize ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Gen.Size → Gen.Gen t
+arbitraryEJsonOfSize = anaM Sig.arbitraryEJsonF
+
+renderEJson ∷ ∀ t. Recursive t Sig.EJsonF ⇒ t → String
+renderEJson = cata Sig.renderEJsonF
+
+parseEJson ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ String → E.Either P.ParseError t
+parseEJson = anaM Sig.parseEJsonF
+{-
 arbitraryEJsonOfSize
   ∷ Gen.Size
   → Gen.Gen EJson
-arbitraryEJsonOfSize size =
+arbitraryEJsonOfSize size = do
+  anaM size
   embed <$>
     case size of
       0 → Sig.arbitraryBaseEJsonF
@@ -100,17 +105,8 @@ arbitraryJsonEncodableEJsonOfSize size =
     keyGen =
       embed <<< Sig.String <$>
         SC.arbitrary
+-}
 
-renderEJson ∷ EJson → String
-renderEJson =
-  cata Sig.renderEJsonF
-
--- | A closed parser of SQL^2 constant expressions
-parseEJson ∷ ∀ m. Monad m ⇒ P.ParserT String m EJson
-parseEJson =
-  Lazy.fix \f →
-    embed <$>
-      Sig.parseEJsonF f
 
 null ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ t
 null = embed Sig.Null

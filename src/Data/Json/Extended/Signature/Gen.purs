@@ -1,7 +1,5 @@
 module Data.Json.Extended.Signature.Gen
-  ( arbitraryBaseEJsonF
-  , arbitraryEJsonF
-  , arbitraryEJsonFWithKeyGen
+  ( arbitraryEJsonF
   ) where
 
 import Prelude
@@ -9,68 +7,36 @@ import Prelude
 import Data.Array as A
 import Data.DateTime as DT
 import Data.Enum (toEnum)
+import Data.Int as Int
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.Maybe (fromMaybe)
 import Data.Tuple as T
 
+import Matryoshka (CoalgebraM)
+
 import Test.StrongCheck.Arbitrary as SC
 import Test.StrongCheck.Gen as Gen
 
-arbitraryBaseEJsonF ∷ ∀ a. Gen.Gen (EJsonF a)
-arbitraryBaseEJsonF =
+arbitraryEJsonF ∷ CoalgebraM Gen.Gen EJsonF Int
+arbitraryEJsonF 0 =
   Gen.oneOf (pure Null)
-    [ Boolean <$> SC.arbitrary
-    , Integer <$> SC.arbitrary
-    , Decimal <$> arbitraryDecimal
-    , String <$> SC.arbitrary
-    , Timestamp <$> arbitraryDateTime
-    , Date <$> arbitraryDate
-    , Time <$> arbitraryTime
-    , Interval <$> SC.arbitrary
-    , ObjectId <$> SC.arbitrary
-    , pure Null
+    [ map Boolean $ SC.arbitrary
+    , map Integer $ SC.arbitrary
+    , map Decimal $ arbitraryDecimal
+    , map String $ arbitraryString
+    , map Timestamp $ arbitraryDateTime
+    , map Date $ arbitraryDate
+    , map Time $ arbitraryTime
+    , map Interval $ map ("P" <> _) $ SC.arbitrary
+    , map ObjectId arbitraryObjectId
     ]
-
-arbitraryEJsonFWithKeyGen
-  ∷ ∀ a
-  . (Eq a)
-  ⇒ Gen.Gen a
-  → Gen.Gen a
-  → Gen.Gen (EJsonF a)
-arbitraryEJsonFWithKeyGen keyGen rec =
-  Gen.oneOf (pure Null)
-    [ arbitraryBaseEJsonF
-    , Array <$> Gen.arrayOf rec
-    , Map <<< EJsonMap <$> do
-        keys ← distinctArrayOf keyGen
-        vals ← Gen.vectorOf (A.length keys) rec
-        pure $ A.zip keys vals
+arbitraryEJsonF n = do
+  len ← Gen.chooseInt 0 $ n - 1
+  Gen.oneOf (arbitraryEJsonF 0)
+    [ pure $ Array $ A.replicate len $ n - 1
+    , pure $ Map $ EJsonMap $ A.replicate len $ T.Tuple (n - 1) (n - 1)
     ]
-
-  where
-    arbitraryTuple ∷ Gen.Gen (T.Tuple a a)
-    arbitraryTuple =
-      T.Tuple
-        <$> keyGen
-        <*> rec
-
-arbitraryEJsonF
-  ∷ ∀ a
-  . (Eq a)
-  ⇒ Gen.Gen a
-  → Gen.Gen (EJsonF a)
-arbitraryEJsonF rec =
-  arbitraryEJsonFWithKeyGen rec rec
-
-distinctArrayOf
-  ∷ ∀ a
-  . (Eq a)
-  ⇒ Gen.Gen a
-  → Gen.Gen (Array a)
-distinctArrayOf =
-  map A.nub
-    <<< Gen.arrayOf
 
 arbitraryDecimal ∷ Gen.Gen HN.HugeNum
 arbitraryDecimal =
@@ -100,3 +66,12 @@ arbitraryTime = do
     (fromMaybe bottom (toEnum minute))
     (fromMaybe bottom (toEnum second))
     bottom
+
+
+arbitraryObjectId ∷ Gen.Gen String
+arbitraryObjectId =
+  Int.toStringAs Int.hexadecimal <$> SC.arbitrary
+
+arbitraryString ∷ Gen.Gen String
+arbitraryString =
+  Int.toStringAs Int.base36 <$> SC.arbitrary

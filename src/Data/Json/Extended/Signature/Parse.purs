@@ -20,9 +20,11 @@ module Data.Json.Extended.Signature.Parse
 import Prelude
 
 import Control.Alt ((<|>))
+import Control.Monad.State (get)
 
 import Data.Array as A
 import Data.DateTime as DT
+import Data.Either as E
 import Data.Enum (toEnum)
 import Data.Foldable as F
 import Data.HugeNum as HN
@@ -32,6 +34,8 @@ import Data.List as L
 import Data.Maybe as M
 import Data.String as S
 import Data.Tuple as T
+
+import Matryoshka (CoalgebraM)
 
 import Text.Parsing.Parser as P
 import Text.Parsing.Parser.Combinators as PC
@@ -67,17 +71,6 @@ braces =
     (PS.string "{")
     (PS.string "}")
 
-commaSep
-  ∷ ∀ m a
-  . Monad m
-  ⇒ P.ParserT String m a
-  → P.ParserT String m (L.List a)
-commaSep =
-  flip PC.sepBy $
-    PS.skipSpaces
-      *> PS.string ","
-      <* PS.skipSpaces
-
 stringInner ∷ ∀ m . Monad m ⇒ P.ParserT String m String
 stringInner = A.many stringChar <#> S.fromCharArray
   where
@@ -100,6 +93,15 @@ taggedLiteral tag p =
   PC.try $
     PS.string tag
       *> parens (quoted p)
+
+anyTagged ∷ ∀ m. Monad m ⇒ P.ParserT String m String
+anyTagged = do
+  tag ← map S.fromCharArray $ A.many tagLetter
+  val ← parens $ quoted stringInner
+  pure $ tag <> "(\"" <> val <> "\")"
+  where
+  tagLetter = PS.satisfy \a → a /= '"' && a /= '(' && a /= ':'
+--  stringEscape = PS.string "\\\"" $> '"'
 
 -- | Parses time _values_ of the form `HH:mm:SS`. For the EJson time literal
 -- | `TIME("HH:mm:SS")` use `parseTimeLiteral`.
@@ -145,8 +147,7 @@ anyString
   . Monad m
   ⇒ P.ParserT String m String
 anyString =
-  A.many PS.anyChar
-    <#> S.fromCharArray
+  map S.fromCharArray $ A.many PS.anyChar
 
 parseDigit ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
 parseDigit =
@@ -293,50 +294,205 @@ parseIntLiteral = parseSigned parseNat
 parseStringLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
 parseStringLiteral = quoted stringInner
 
-parseTimestampLiteral :: forall m. Monad m => P.ParserT String m DT.DateTime
+parseTimestampLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.DateTime
 parseTimestampLiteral = taggedLiteral "TIMESTAMP" parseTimestamp
 
-parseTimeLiteral :: forall m. Monad m => P.ParserT String m DT.Time
+parseTimeLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Time
 parseTimeLiteral = taggedLiteral "TIME" parseTime
 
-parseDateLiteral :: forall m. Monad m => P.ParserT String m DT.Date
+parseDateLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m DT.Date
 parseDateLiteral = taggedLiteral "DATE" parseDate
 
-parseIntervalLiteral :: forall m. Monad m => P.ParserT String m String
+parseIntervalLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
 parseIntervalLiteral = taggedLiteral "INTERVAL" stringInner
 
-parseObjectIdLiteral :: forall m. Monad m => P.ParserT String m String
+parseObjectIdLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
 parseObjectIdLiteral = taggedLiteral "OID" stringInner
 
-parseArrayLiteral :: forall a m. Monad m => P.ParserT String m a -> P.ParserT String m (Array a)
-parseArrayLiteral p = A.fromFoldable <$> squares (commaSep p)
-
-parseMapLiteral :: forall a m. Monad m => P.ParserT String m a -> P.ParserT String m (EJsonMap a)
-parseMapLiteral p = EJsonMap <<< A.fromFoldable <$> braces (commaSep parseAssignment)
-  where
-  parseColon ∷ P.ParserT String m String
-  parseColon = PS.skipSpaces *> PS.string ":" <* PS.skipSpaces
-  parseAssignment ∷ P.ParserT String m (T.Tuple a a)
-  parseAssignment = T.Tuple <$> p <* parseColon <*> p
-
--- | Parse one layer of structure.
-parseEJsonF
-  ∷ ∀ m a
+parseArrayLiteral
+  ∷ ∀ m
   . Monad m
-  ⇒ P.ParserT String m a
-  → P.ParserT String m (EJsonF a)
-parseEJsonF rec =
-  PC.choice $
+  ⇒ P.ParserT String m (Array String)
+parseArrayLiteral = do
+  (P.ParseState s _ _) ← get
+  let
+    err ∷ ∀ a. E.Either String a
+    err = E.Left "Incorrect Array literal"
+
+    start =
+      { acc: []
+      , squares: 0
+      , brackets: 0
+      , quotes: false
+      , slashed: false
+      , result: [ ]
+      }
+    foldFn acc ch = case ch of
+      '[' → pure acc{ acc = A.cons ch acc.acc
+                    , squares = acc.squares + one
+                    }
+      ']' | acc.squares < 0 → err
+          | otherwise → pure acc{ acc = A.cons ch acc.acc
+                                , squares = acc.squares - one
+                                }
+      '{' → pure acc{ acc = A.cons ch acc.acc
+                    , brackets = acc.brackets + one
+                    }
+      '}' | acc.brackets < 0 → err
+          | otherwise → pure acc{ acc = A.cons ch acc.acc
+                                , brackets = acc.brackets - one
+                                }
+      '"' → pure acc{ acc = A.cons ch acc.acc
+                    , quotes = if acc.slashed then acc.quotes else not acc.quotes
+                    }
+      '\\' → pure acc{ acc = A.cons ch acc.acc
+                     , slashed = not acc.slashed
+                     }
+      ',' | acc.quotes → pure acc { acc = A.cons ch acc.acc }
+          | acc.brackets /= 0
+            || acc.squares /= 0
+            || acc.quotes
+            || acc.slashed → err
+          | otherwise → pure acc { acc = [ ]
+                                 , result =
+                                      A.snoc acc.result
+                                      $ S.trim
+                                      $ S.fromCharArray
+                                      $ A.reverse acc.acc
+                                 }
+      ':' | not acc.quotes && acc.brackets < 1 → err
+          | otherwise → pure acc { acc = A.cons ch acc.acc }
+      _ → pure acc { acc = A.cons ch acc.acc }
+
+    result ∷ E.Either String (Array String)
+    result =
+      case S.stripSuffix (S.Pattern "]") s >>= S.stripPrefix (S.Pattern "[") of
+        M.Nothing → err
+        M.Just str → do
+          folded ← A.foldRecM foldFn start $ S.toCharArray str
+          if (folded.quotes
+            || folded.slashed
+            || folded.squares /= 0
+            || folded.brackets /= 0)
+            then err
+            else
+            pure
+            $ A.filter (_ /= "")
+            $ A.snoc folded.result
+            $ S.trim
+            $ S.fromCharArray
+            $ A.reverse folded.acc
+
+  case result of
+    E.Left e → P.fail e
+    E.Right r → pure r
+
+
+parseMapLiteral
+  ∷ ∀ m
+  . Monad m
+  ⇒ P.ParserT String m (EJsonMap String)
+parseMapLiteral = do
+  (P.ParseState s _ _) ← get
+  let
+    err ∷ ∀ a. E.Either String a
+    err = E.Left "Incorrect Map literal"
+
+    start =
+      { acc: []
+      , squares: 0
+      , brackets: 0
+      , quotes: false
+      , slashed: false
+      , fst: ""
+      , result: [ ]
+      }
+    foldFn acc ch = case ch of
+      '[' → pure acc{ acc = A.cons ch acc.acc
+                    , squares = acc.squares + one
+                    }
+      ']' | acc.squares < 0 → err
+          | otherwise → pure acc{ acc = A.cons ch acc.acc
+                                , squares = acc.squares - one
+                                }
+      '{' → pure acc{ acc = A.cons ch acc.acc
+                    , brackets = acc.brackets + one
+                    }
+      '}' | acc.brackets < 0 → err
+          | otherwise → pure acc{ acc = A.cons ch acc.acc
+                                , brackets = acc.brackets - one
+                                }
+      '"' → pure acc{ acc = A.cons ch acc.acc
+                    , quotes = if acc.slashed then acc.quotes else not acc.quotes
+                    }
+      '\\' → pure acc{ acc = A.cons ch acc.acc
+                     , slashed = not acc.slashed
+                     }
+      ',' | acc.quotes → pure acc { acc = A.cons ch acc.acc }
+          | acc.brackets /= 0
+            || acc.squares /= 0
+            || acc.quotes
+            || acc.slashed → err
+          | acc.fst == "" → err
+          | otherwise → pure acc { acc = [ ]
+                                 , result =
+                                      A.snoc acc.result
+                                      $ T.Tuple acc.fst
+                                      $ S.trim
+                                      $ S.fromCharArray
+                                      $ A.reverse acc.acc
+                                 , fst = ""
+                                 }
+      ':' | not acc.quotes && acc.brackets < 0 → err
+          | not acc.quotes && acc.brackets == 0 →
+              pure acc { fst = S.trim $ S.fromCharArray $ A.reverse acc.acc
+                       , acc = [ ]
+                       }
+          | otherwise → pure acc { acc = A.cons ch acc.acc }
+      _ → pure acc { acc = A.cons ch acc.acc }
+
+    result ∷ E.Either String (EJsonMap String)
+    result =
+      case S.stripSuffix (S.Pattern "}") s >>= S.stripPrefix (S.Pattern "{") of
+        M.Nothing → err
+        M.Just str → do
+          folded ← A.foldRecM foldFn start $ S.toCharArray str
+          if (folded.quotes
+            || folded.slashed
+            || folded.squares /= 0
+            || folded.brackets /= 0
+            )
+            then err
+            else
+            pure
+            $ EJsonMap
+            $ A.filter (\(T.Tuple k v) → k /= "")
+            $ A.snoc folded.result
+            $ T.Tuple folded.fst
+            $ S.trim
+            $ S.fromCharArray
+            $ A.reverse folded.acc
+
+  case result of
+    E.Left e → P.fail e
+    E.Right r → pure r
+
+
+parseEJsonF ∷ CoalgebraM (E.Either P.ParseError) EJsonF String
+parseEJsonF s =
+  s # S.trim # P.runParser
+  $ PC.choice
     [ Null <$ parseNull
     , Boolean <$> parseBooleanLiteral
     , Decimal <$> PC.try parseDecimalLiteral
     , Integer <$> parseIntLiteral
-    , String <$> parseStringLiteral
     , Timestamp <$> parseTimestampLiteral
     , Time <$> parseTimeLiteral
     , Date <$> parseDateLiteral
     , Interval <$> parseIntervalLiteral
     , ObjectId <$> parseObjectIdLiteral
-    , Array <$> parseArrayLiteral rec
-    , Map <$> parseMapLiteral rec
+    , String <$> parseStringLiteral
+    , Array <$> parseArrayLiteral
+    , Map <$> parseMapLiteral
+    , P.fail "Incorrect EJson"
     ]
