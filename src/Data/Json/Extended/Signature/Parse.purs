@@ -28,8 +28,6 @@ import Text.Parsing.Parser as P
 import Text.Parsing.Parser.Combinators as PC
 import Text.Parsing.Parser.String as PS
 
-import Debug.Trace as DT
-
 squares
   ∷ ∀ m a
   . Monad m
@@ -56,15 +54,12 @@ commaSep
   ⇒ P.ParserT String m a
   → P.ParserT String m (L.List a)
 commaSep p = do
-  get >>= DT.traceAnyA
   PS.skipSpaces
   o ← PC.sepBy p do
     PS.skipSpaces
     PS.string ","
     PS.skipSpaces
-  DT.traceAnyA o
   PS.skipSpaces
-  get >>= DT.traceAnyA
   pure o
 
 stringInner ∷ ∀ m . Monad m ⇒ P.ParserT String m String
