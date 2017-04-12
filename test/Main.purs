@@ -1,6 +1,7 @@
 module Test.Main where
 
 import Prelude
+
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
@@ -17,6 +18,8 @@ import Data.Json.Extended.Cursor as EJC
 import Test.StrongCheck ((<?>))
 import Test.StrongCheck as SC
 import Test.StrongCheck.Arbitrary as SCA
+
+import Text.Parsing.Parser as P
 
 type TestEffects =
   ( err ∷ EXCEPTION
@@ -40,7 +43,7 @@ testJsonSerialization =
 
 testRenderParse ∷ Eff TestEffects Unit
 testRenderParse =
-  SC.quickCheck' 1000 \(ArbEJson x) → case parseEJson $ renderEJson x of
+  SC.quickCheck' 1000 \(ArbEJson x) → case P.runParser (renderEJson x) parseEJson of
     E.Right y →
       x == y <?> "Mismatch:\n" <> renderEJson x <> "\n" <> renderEJson y
     E.Left err →

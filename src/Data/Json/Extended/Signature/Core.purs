@@ -7,7 +7,6 @@ module Data.Json.Extended.Signature.Core
 import Prelude
 
 import Data.Bifunctor as BF
-import Data.DateTime as DT
 import Data.Eq (class Eq1)
 import Data.Foldable as F
 import Data.HugeNum as HN
@@ -28,11 +27,6 @@ data EJsonF a
   | Boolean Boolean
   | Integer Int
   | Decimal HN.HugeNum
-  | Timestamp DT.DateTime
-  | Date DT.Date
-  | Time DT.Time
-  | Interval String
-  | ObjectId String
   | Array (Array a)
   | Map (EJsonMap a)
 
@@ -66,12 +60,7 @@ instance traversableEJsonF ∷ T.Traversable EJsonF where
     String str → pure $ String str
     Boolean b → pure $ Boolean b
     Integer i → pure $ Integer i
-    Decimal a → pure $ Decimal a
-    Timestamp ts → pure $ Timestamp ts
-    Date d → pure $ Date d
-    Time t → pure $ Time t
-    Interval i → pure $ Interval i
-    ObjectId oid → pure $ ObjectId oid
+    Decimal d → pure $ Decimal d
   sequence = T.sequenceDefault
 
 instance showEJsonF ∷ Show (EJsonF TacitString) where
@@ -80,12 +69,7 @@ instance showEJsonF ∷ Show (EJsonF TacitString) where
     String s → "(String " <> show s <> ")"
     Boolean b → "(Boolean " <> show b <> ")"
     Integer i → "(Integer " <> show i <> ")"
-    Decimal n → "(Decimal " <> show n <> ")"
-    Timestamp r → "(Timestamp " <> show r <> ")"
-    Date d → "(Date " <> show d <> ")"
-    Time t → "(Time " <> show t <> ")"
-    Interval i → "(Interval " <> show i <> ")"
-    ObjectId i → "(ObjectId " <> show i <> ")"
+    Decimal d → "(Decimal " <> show d <> ")"
     Array xs → "(Array " <> show xs <> ")"
     Map kvs → "(Map " <> show kvs <> ")"
 
@@ -96,11 +80,6 @@ getType = case _ of
   Boolean _ → JT.Boolean
   Integer _ → JT.Integer
   Decimal _ → JT.Decimal
-  Timestamp _ → JT.Timestamp
-  Date _ → JT.Date
-  Time _ → JT.Time
-  Interval _ → JT.Interval
-  ObjectId _ → JT.ObjectId
   Array _ → JT.Array
   Map _ → JT.Map
 

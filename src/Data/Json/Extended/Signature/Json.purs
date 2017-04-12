@@ -9,17 +9,13 @@ import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Encode (encodeJson)
 import Data.Array as A
 import Data.Bifunctor (lmap)
-import Data.DateTime as DT
 import Data.Either as E
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
-import Data.Json.Extended.Signature.Parse (parseDate, parseTime, parseTimestamp)
-import Data.Json.Extended.Signature.Render (renderDate, renderTime, renderTimestamp)
 import Data.Maybe as M
 import Data.StrMap as SM
 import Data.Traversable as TR
-import Text.Parsing.Parser as P
 
 import Matryoshka (Algebra, CoalgebraM)
 
@@ -30,11 +26,6 @@ encodeJsonEJsonF = case _ of
   Integer i → encodeJson i
   Decimal a → encodeJson $ HN.toNumber a
   String str → encodeJson str
-  Timestamp dt → JS.jsonSingletonObject "$timestamp" $ encodeJson $ renderTimestamp dt
-  Time t → JS.jsonSingletonObject "$time" $ encodeJson $ renderTime t
-  Date d → JS.jsonSingletonObject "$date" $ encodeJson $ renderDate d
-  Interval str → JS.jsonSingletonObject "$interval" $ encodeJson str
-  ObjectId str → JS.jsonSingletonObject "$oid" $ encodeJson str
   Array xs → encodeJson xs
   Map (EJsonMap xs) → JS.jsonSingletonObject "$obj" $ encodeJson xs
 
@@ -62,11 +53,6 @@ decodeJsonEJsonF =
   decodeObject obj =
     unwrapBranch "$obj" strMapObject obj
     <|> unwrapBranch "$obj" arrTpls obj
-    <|> unwrapLeaf "$timestamp" decodeTimestamp Timestamp obj
-    <|> unwrapLeaf "$date" decodeDate Date obj
-    <|> unwrapLeaf "$time" decodeTime Time obj
-    <|> unwrapLeaf "$interval" decodeJson Interval obj
-    <|> unwrapLeaf "$oid" decodeJson ObjectId obj
     <|> unwrapNull obj
     <|> strMapObject obj
 
@@ -129,15 +115,3 @@ decodeJsonEJsonF =
       obj .? key
     keys →
       E.Left $ "Expected '" <> key <> "' to be the only key, but found: " <> show keys
-
-decodeTimestamp ∷ JS.Json → E.Either String DT.DateTime
-decodeTimestamp = decodeJson >=> \val →
-  lmap show $ P.runParser val parseTimestamp
-
-decodeDate ∷ JS.Json → E.Either String DT.Date
-decodeDate = decodeJson >=> \val →
-  lmap show $ P.runParser val parseDate
-
-decodeTime ∷ JS.Json → E.Either String DT.Time
-decodeTime = decodeJson >=> \val →
-  lmap show $ P.runParser val parseTime
