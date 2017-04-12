@@ -5,7 +5,6 @@ module Data.Json.Extended.Signature.Render
 import Prelude
 
 import Data.Either (fromRight)
-import Data.Enum (class BoundedEnum, fromEnum)
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))

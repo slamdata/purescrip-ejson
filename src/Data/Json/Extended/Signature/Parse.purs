@@ -12,7 +12,6 @@ module Data.Json.Extended.Signature.Parse
 import Prelude
 
 import Control.Alt ((<|>))
-import Control.Monad.State (get)
 
 import Data.Array as A
 import Data.Foldable as F
@@ -63,7 +62,7 @@ commaSep p = do
   pure o
 
 stringInner ∷ ∀ m . Monad m ⇒ P.ParserT String m String
-stringInner = A.some stringChar <#> S.fromCharArray
+stringInner = A.many stringChar <#> S.fromCharArray
   where
   stringChar = PC.try stringEscape <|> stringLetter
   stringLetter = PS.satisfy (_ /= '"')
