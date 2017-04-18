@@ -5,12 +5,15 @@ import Prelude
 import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Eq (class Eq1)
+import Data.Foldable (class Foldable)
 import Data.Functor.Mu (Mu)
 import Data.Json.Extended (EJson)
 import Data.Json.Extended as EJ
 import Data.Maybe (Maybe(..), maybe)
+import Data.Monoid (mempty)
 import Data.Ord (class Ord1)
 import Data.TacitString (TacitString)
+import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (Tuple(..), lookup)
 
 import Matryoshka (Algebra, cata, project, embed)
@@ -57,6 +60,27 @@ instance showCursorF ∷ Show (CursorF TacitString) where
     All → "All"
     AtKey k a → "(AtKey " <> show k <> " " <> show a <> ")"
     AtIndex i a → "(AtIndex " <> show i <> " " <> show a <> ")"
+
+instance foldableCursorF :: Foldable CursorF where
+  foldr f b = case _ of
+    All -> b
+    AtKey _ a -> f a b
+    AtIndex _ a -> f a b
+  foldl f b = case _ of
+    All -> b
+    AtKey _ a -> f b a
+    AtIndex _ a -> f b a
+  foldMap f = case _ of
+    All -> mempty
+    AtKey _ a -> f a
+    AtIndex _ a -> f a
+
+instance traversableCursorF :: Traversable CursorF where
+  traverse f = case _ of
+    All -> pure All
+    AtKey k a -> AtKey k <$> f a
+    AtIndex i a -> AtIndex i <$> f a
+  sequence = traverse id
 
 renderEJsonCursor ∷ Cursor → String
 renderEJsonCursor = show
