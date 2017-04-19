@@ -1,6 +1,7 @@
 module Test.Main where
 
 import Prelude
+
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
@@ -10,14 +11,15 @@ import Data.Either as E
 import Data.Maybe (Maybe(..))
 import Data.StrMap as SM
 import Data.Tuple (Tuple(..))
-import Data.Json.Extended (EJson, arbitraryJsonEncodableEJsonOfSize, arbitraryEJsonOfSize, renderEJson, parseEJson, decodeEJson, encodeEJson)
+import Data.Json.Extended (EJson, arbitraryEJsonOfSize, renderEJson, parseEJson, decodeEJson, encodeEJson)
 import Data.Json.Extended as EJ
 import Data.Json.Extended.Cursor as EJC
 
-import Text.Parsing.Parser as P
-
+import Test.StrongCheck ((<?>))
 import Test.StrongCheck as SC
 import Test.StrongCheck.Arbitrary as SCA
+
+import Text.Parsing.Parser as P
 
 type TestEffects =
   ( err ∷ EXCEPTION
@@ -25,28 +27,27 @@ type TestEffects =
   , console ∷ CONSOLE
   )
 
-newtype ArbJsonEncodableEJson = ArbJsonEncodableEJson EJson
 newtype ArbEJson = ArbEJson EJson
 
-instance arbitraryArbJsonEncodableEJson ∷ SCA.Arbitrary ArbJsonEncodableEJson where
-  arbitrary = ArbJsonEncodableEJson <$> arbitraryJsonEncodableEJsonOfSize 2
-
 instance arbitraryArbEJson ∷ SCA.Arbitrary ArbEJson where
-  arbitrary = ArbEJson <$> arbitraryEJsonOfSize 2
+  arbitrary = map ArbEJson $ arbitraryEJsonOfSize 3
 
 testJsonSerialization ∷ Eff TestEffects Unit
 testJsonSerialization =
-  SC.quickCheck \(ArbJsonEncodableEJson x) →
-    case decodeEJson (encodeEJson x) of
-      E.Right y → x == y SC.<?> "Mismatch:\n" <> renderEJson x <> "\n" <> renderEJson y
-      E.Left err → SC.Failed $ "Parse error: " <> err
+  SC.quickCheck' 1000 \(ArbEJson x) → case decodeEJson (encodeEJson x) of
+    E.Right y →
+      x == y
+      <?> "Mismatch:\n" <> renderEJson x <> "\n" <> renderEJson y
+    E.Left err →
+      SC.Failed $ "Parse error: " <> err
 
 testRenderParse ∷ Eff TestEffects Unit
 testRenderParse =
-  SC.quickCheck \(ArbEJson x) →
-    case P.runParser (renderEJson x) parseEJson of
-      E.Right y → x == y SC.<?> "Mismatch:\n" <> renderEJson x <> "\n" <> renderEJson y
-      E.Left err → SC.Failed $ "Parse error: " <> show err <> " when parsing:\n\n " <> renderEJson x <> "\n\n"
+  SC.quickCheck' 1000 \(ArbEJson x) → case P.runParser (renderEJson x) parseEJson of
+    E.Right y →
+      x == y <?> "Mismatch:\n" <> renderEJson x <> "\n" <> renderEJson y
+    E.Left err →
+      SC.Failed $ "Parse error: " <> show err <> " when parsing:\n\n " <> renderEJson x <> "\n\n"
 
 testCursorExamples ∷ Eff TestEffects Unit
 testCursorExamples = do
@@ -112,12 +113,11 @@ testCursorExamples = do
   assertMbEq x y = SC.assert $ SC.assertEq (map renderEJson x) (map renderEJson y)
 
   assertEq ∷ EJson → EJson → Eff TestEffects Unit
-  assertEq x y = SC.assert $ x == y SC.<?> msg
+  assertEq x y = SC.assert $ x == y <?> msg
     where
     msg = renderEJson x <> " /= " <> renderEJson y
 
-
-main :: Eff TestEffects Unit
+main ∷ Eff TestEffects Unit
 main = do
   testJsonSerialization
   testRenderParse

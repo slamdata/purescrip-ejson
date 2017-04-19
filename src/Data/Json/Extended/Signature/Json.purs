@@ -9,18 +9,13 @@ import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Encode (encodeJson)
 import Data.Array as A
 import Data.Bifunctor (lmap)
-import Data.DateTime as DT
 import Data.Either as E
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
-import Data.Json.Extended.Signature.Parse (parseDate, parseTime, parseTimestamp)
-import Data.Json.Extended.Signature.Render (renderDate, renderTime, renderTimestamp)
 import Data.Maybe as M
 import Data.StrMap as SM
 import Data.Traversable as TR
-import Data.Tuple as T
-import Text.Parsing.Parser as P
 
 import Matryoshka (Algebra, CoalgebraM)
 
@@ -31,27 +26,8 @@ encodeJsonEJsonF = case _ of
   Integer i → encodeJson i
   Decimal a → encodeJson $ HN.toNumber a
   String str → encodeJson str
-  Timestamp dt → JS.jsonSingletonObject "$timestamp" $ encodeJson $ renderTimestamp dt
-  Time t → JS.jsonSingletonObject "$time" $ encodeJson $ renderTime t
-  Date d → JS.jsonSingletonObject "$date" $ encodeJson $ renderDate d
-  Interval str → JS.jsonSingletonObject "$interval" $ encodeJson str
-  ObjectId str → JS.jsonSingletonObject "$oid" $ encodeJson str
   Array xs → encodeJson xs
-  Map (EJsonMap xs) → JS.jsonSingletonObject "$obj" $ encodeJson $ asStrMap xs
-  where
-  tuple
-    ∷ T.Tuple JS.Json JS.Json
-    → M.Maybe (T.Tuple String JS.Json)
-  tuple (T.Tuple k v) =
-    T.Tuple  <$> JS.toString k  <*> pure v
-
-  asStrMap
-    ∷ Array (T.Tuple JS.Json JS.Json)
-    → SM.StrMap JS.Json
-  asStrMap =
-    SM.fromFoldable
-    <<< A.mapMaybe tuple
-
+  Map (EJsonMap xs) → JS.jsonSingletonObject "$obj" $ encodeJson xs
 
 decodeJsonEJsonF ∷ CoalgebraM (E.Either String) EJsonF JS.Json
 decodeJsonEJsonF =
@@ -76,19 +52,22 @@ decodeJsonEJsonF =
     → E.Either String (EJsonF JS.Json)
   decodeObject obj =
     unwrapBranch "$obj" strMapObject obj
-    <|> unwrapLeaf "$timestamp" decodeTimestamp Timestamp obj
-    <|> unwrapLeaf "$date" decodeDate Date obj
-    <|> unwrapLeaf "$time" decodeTime Time obj
-    <|> unwrapLeaf "$interval" decodeJson Interval obj
-    <|> unwrapLeaf "$oid" decodeJson ObjectId obj
+    <|> unwrapBranch "$obj" arrTpls obj
     <|> unwrapNull obj
-    <|> (pure $ strMapObject obj)
+    <|> strMapObject obj
+
+  arrTpls
+    ∷ Array JS.Json
+    → E.Either String (EJsonF JS.Json)
+  arrTpls arr = do
+    map Map $ map EJsonMap $ TR.traverse decodeJson arr
 
   strMapObject
     ∷ SM.StrMap JS.Json
-    → EJsonF JS.Json
+    → E.Either String (EJsonF JS.Json)
   strMapObject =
-    Map
+    pure
+    <<< Map
     <<< EJsonMap
     <<< A.fromFoldable
     <<< map (lmap encodeJson)
@@ -98,13 +77,13 @@ decodeJsonEJsonF =
     ∷ ∀ t
     . (TR.Traversable t, DecodeJson (t JS.Json))
     ⇒ String
-    → (t JS.Json → EJsonF JS.Json)
+    → (t JS.Json → E.Either String (EJsonF JS.Json))
     → JS.JObject
     → E.Either String (EJsonF JS.Json)
   unwrapBranch key trCodec obj =
     getOnlyKey key obj
       >>= decodeJson
-      >>> map trCodec
+      >>= trCodec
 
   unwrapNull
     ∷ JS.JObject
@@ -136,15 +115,3 @@ decodeJsonEJsonF =
       obj .? key
     keys →
       E.Left $ "Expected '" <> key <> "' to be the only key, but found: " <> show keys
-
-decodeTimestamp ∷ JS.Json → E.Either String DT.DateTime
-decodeTimestamp = decodeJson >=> \val →
-  lmap show $ P.runParser val parseTimestamp
-
-decodeDate ∷ JS.Json → E.Either String DT.Date
-decodeDate = decodeJson >=> \val →
-  lmap show $ P.runParser val parseDate
-
-decodeTime ∷ JS.Json → E.Either String DT.Time
-decodeTime = decodeJson >=> \val →
-  lmap show $ P.runParser val parseTime

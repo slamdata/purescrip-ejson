@@ -8,11 +8,6 @@ data EJsonType
   | Boolean
   | Integer
   | Decimal
-  | Timestamp
-  | Date
-  | Time
-  | Interval
-  | ObjectId
   | Array
   | Map
 
@@ -25,10 +20,5 @@ instance showEJsonType ∷ Show EJsonType where
   show Boolean = "Boolean"
   show Integer = "Integer"
   show Decimal = "Decimal"
-  show Timestamp = "Timestamp"
-  show Date = "Date"
-  show Time = "Time"
-  show Interval = "Interval"
-  show ObjectId = "ObjectId"
   show Array = "Array"
   show Map = "Map"
