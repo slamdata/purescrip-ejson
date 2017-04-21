@@ -22,7 +22,7 @@ import Test.StrongCheck.Arbitrary as SCA
 import Text.Parsing.Parser as P
 
 type TestEffects =
-  ( err ∷ EXCEPTION
+  ( exception ∷ EXCEPTION
   , random ∷ RANDOM
   , console ∷ CONSOLE
   )

@@ -7,7 +7,6 @@ import Control.Alt ((<|>))
 import Data.Argonaut.Core as JS
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Encode (encodeJson)
-import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Either as E
 import Data.HugeNum as HN
@@ -69,13 +68,13 @@ decodeJsonEJsonF =
     pure
     <<< Map
     <<< EJsonMap
-    <<< A.fromFoldable
     <<< map (lmap encodeJson)
-    <<< SM.toList
+    <<< SM.toUnfoldable
 
   unwrapBranch
     ∷ ∀ t
-    . (TR.Traversable t, DecodeJson (t JS.Json))
+    . TR.Traversable t
+    ⇒ DecodeJson (t JS.Json)
     ⇒ String
     → (t JS.Json → E.Either String (EJsonF JS.Json))
     → JS.JObject

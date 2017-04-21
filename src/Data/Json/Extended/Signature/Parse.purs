@@ -56,7 +56,7 @@ commaSep p = do
   PS.skipSpaces
   o ← PC.sepBy p do
     PS.skipSpaces
-    PS.string ","
+    _ ← PS.string ","
     PS.skipSpaces
   PS.skipSpaces
   pure o
@@ -114,7 +114,8 @@ parseNat =
 
 parseNegative
   ∷ ∀ m a
-  . (Monad m, Ring a)
+  . Monad m
+  ⇒ Ring a
   ⇒ P.ParserT String m a
   → P.ParserT String m a
 parseNegative p =
@@ -125,7 +126,8 @@ parseNegative p =
 
 parsePositive
   ∷ ∀ m a
-  . (Monad m, Ring a)
+  . Monad m
+  ⇒ Ring a
   ⇒ P.ParserT String m a
   → P.ParserT String m a
 parsePositive p =
@@ -134,7 +136,8 @@ parsePositive p =
 
 parseSigned
   ∷ ∀ m a
-  . (Monad m, Ring a)
+  . Monad m
+  ⇒ Ring a
   ⇒ P.ParserT String m a
   → P.ParserT String m a
 parseSigned p =
