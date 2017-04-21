@@ -146,7 +146,7 @@ setKey ∷ EJ.EJson → EJ.EJson → EJ.EJson → EJ.EJson
 setKey k x v = case project v of
   EJ.Map (EJ.EJsonMap fields) →
     embed <<< EJ.Map <<< EJ.EJsonMap $ map
-      (\(kv@(Tuple k' v)) → if k == k' then Tuple k x else kv) fields
+      (\(kv@(Tuple k' _)) → if k == k' then Tuple k x else kv) fields
   _ → v
 
 -- | Attempts to lookup an index in an EJson Array, returning the associated
