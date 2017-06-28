@@ -5,6 +5,7 @@ module Data.Json.Extended
   , boolean
   , integer
   , decimal
+  , number
   , string
   , map
   , map'
@@ -24,6 +25,7 @@ module Data.Json.Extended
   , _Boolean
   , _Integer
   , _Decimal
+  , _Number
   , _Array
   , _Map
   , _Map'
@@ -89,6 +91,9 @@ integer = embed <<< Sig.Integer
 decimal ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ HN.HugeNum → t
 decimal = embed <<< Sig.Decimal
 
+number ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ E.Either HI.HugeInt HN.HugeNum → t
+number = embed <<< E.either Sig.Integer Sig.Decimal
+
 string ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ String → t
 string = embed <<< Sig.String
 
@@ -129,6 +134,12 @@ _Integer = prism' integer $ project >>> case _ of
 _Decimal ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t HN.HugeNum
 _Decimal = prism' decimal $ project >>> case _ of
   Sig.Decimal d → M.Just d
+  _ → M.Nothing
+
+_Number ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t (E.Either HI.HugeInt HN.HugeNum)
+_Number = prism' number $ project >>> case _ of
+  Sig.Integer i → M.Just (E.Left i)
+  Sig.Decimal d → M.Just (E.Right d)
   _ → M.Nothing
 
 _Array ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t (Array t)
