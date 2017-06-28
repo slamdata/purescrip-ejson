@@ -4,6 +4,7 @@ module Data.Json.Extended.Signature.Parse
   , parseBooleanLiteral
   , parseDecimalLiteral
   , parseIntLiteral
+  , parseHugeIntLiteral
   , parseStringLiteral
   , parseArrayLiteral
   , parseMapLiteral
@@ -105,6 +106,11 @@ parse1000
   hundreds x y z = x * 100 + y * 10 + z
   tens x y = x * 10 + y
 
+-- | This is used for parsing both `Int` and `HugeInt` values so has some extra
+-- | arguments. The `n` value should be 10 in the appropriate type, used to
+-- | move the place of each digit that is parsed. The `Int -> n` function
+-- | should convert a digit to the appropriate type. The `Int` provided will
+-- | always be in the range 0 to 9 inclusive.
 parseNat
   ∷ ∀ m n
   . Monad m
