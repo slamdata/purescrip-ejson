@@ -16,6 +16,7 @@ import Control.Alt ((<|>))
 import Data.Array as A
 import Data.Foldable as F
 import Data.HugeNum as HN
+import Data.HugeInt as HI
 import Data.Int as Int
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.List as L
@@ -105,12 +106,14 @@ parse1000
   tens x y = x * 10 + y
 
 parseNat
-  ∷ ∀ m
+  ∷ ∀ m n
   . Monad m
-  ⇒ P.ParserT String m Int
-parseNat =
-  A.some parseDigit
-    <#> F.foldl (\a i → a * 10 + i) 0
+  ⇒ Semiring n
+  ⇒ n
+  → (Int → n)
+  → P.ParserT String m n
+parseNat ten digit =
+  F.foldl (\a i → a * ten + digit i) zero <$> A.some parseDigit
 
 parseNegative
   ∷ ∀ m a
@@ -158,7 +161,7 @@ parsePositiveScientific
   ⇒ P.ParserT String m HN.HugeNum
 parsePositiveScientific = do
   let ten = HN.fromNumber 10.0
-  lhs ← PC.try $ fromInt <$> parseNat <* PS.string "."
+  lhs ← PC.try $ parseNat ten fromInt <* PS.string "."
   rhs ← A.many parseDigit <#> F.foldr (\d f → divNum (f + fromInt d) ten) zero
   exp ← parseExponent
   pure $ (lhs + rhs) * HN.pow ten exp
@@ -170,7 +173,6 @@ parsePositiveScientific = do
   divNum a b =
     HN.fromNumber $
     HN.toNumber a / HN.toNumber b
-
 
 parseHugeNum
   ∷ ∀ m
@@ -202,8 +204,11 @@ parseBooleanLiteral =
 parseDecimalLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m HN.HugeNum
 parseDecimalLiteral = parseHugeNum <|> parseScientific
 
+parseHugeIntLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m HI.HugeInt
+parseHugeIntLiteral = parseSigned (parseNat (HI.fromInt 10) HI.fromInt)
+
 parseIntLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
-parseIntLiteral = parseSigned parseNat
+parseIntLiteral = parseSigned (parseNat 10 id)
 
 parseStringLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
 parseStringLiteral = quoted stringInner
@@ -226,11 +231,11 @@ parseEJsonF
   ⇒ P.ParserT String m a
   → P.ParserT String m (EJsonF a)
 parseEJsonF rec =
-  PC.choice $
+  PC.choice
     [ Null <$ parseNull
     , Boolean <$> parseBooleanLiteral
     , Decimal <$> PC.try parseDecimalLiteral
-    , Integer <$> parseIntLiteral
+    , Integer <$> parseHugeIntLiteral
     , String <$> parseStringLiteral
     , Array <$> parseArrayLiteral rec
     , Map <$> parseMapLiteral rec

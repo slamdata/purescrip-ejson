@@ -6,21 +6,24 @@ import Prelude
 
 import Data.Either (fromRight)
 import Data.Foldable as F
+import Data.HugeInt as HI
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
+import Data.Maybe (fromMaybe)
+import Data.String as Str
 import Data.String.Regex as RX
 import Data.String.Regex.Flags as RXF
 import Data.Tuple as T
-
 import Matryoshka (Algebra)
-
 import Partial.Unsafe (unsafePartial)
 
 renderEJsonF ∷ Algebra EJsonF String
 renderEJsonF = case _ of
   Null → "null"
   Boolean b → if b then "true" else "false"
-  Integer i → show i
+  Integer i →
+    let s = HN.toString (HI.toHugeNum i)
+    in fromMaybe s $ Str.stripSuffix (Str.Pattern ".0") s
   Decimal a → HN.toString a
   String str → stringEJson str
   Array ds → squares $ commaSep ds
