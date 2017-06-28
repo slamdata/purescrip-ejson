@@ -23,7 +23,9 @@
     "purescript-newtype": "^2.0.0",
     "purescript-parsing": "^4.1.0",
     "purescript-precise": "^2.0.0",
-    "purescript-profunctor-lenses": "^3.2.0",
-    "purescript-strongcheck": "^3.1.0"
+    "purescript-profunctor-lenses": "^3.2.0"
+  },
+  "devDependencies": {
+    "purescript-quickcheck": "^4.4.0"
   }
 }
