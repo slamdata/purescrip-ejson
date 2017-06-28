@@ -3,26 +3,25 @@ module Data.Json.Extended.Signature.Json where
 import Prelude
 
 import Control.Alt ((<|>))
-
 import Data.Argonaut.Core as JS
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.?))
 import Data.Argonaut.Encode (encodeJson)
 import Data.Bifunctor (lmap)
 import Data.Either as E
+import Data.HugeInt as HI
 import Data.HugeNum as HN
 import Data.Int as Int
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.Maybe as M
 import Data.StrMap as SM
 import Data.Traversable as TR
-
 import Matryoshka (Algebra, CoalgebraM)
 
 encodeJsonEJsonF ∷ Algebra EJsonF JS.Json
 encodeJsonEJsonF = case _ of
   Null → JS.jsonNull
   Boolean b → encodeJson b
-  Integer i → encodeJson i
+  Integer i → encodeJson $ HN.toNumber $ HI.toHugeNum i -- TODO: bug in HI.toInt
   Decimal a → encodeJson $ HN.toNumber a
   String str → encodeJson str
   Array xs → encodeJson xs
@@ -40,7 +39,7 @@ decodeJsonEJsonF =
   where
   decodeNumber ∷ Number → EJsonF JS.Json
   decodeNumber a = case Int.fromNumber a of
-    M.Just i → Integer i
+    M.Just i → Integer $ HI.fromInt i
     M.Nothing → Decimal $ HN.fromNumber a
 
   decodeArray ∷ JS.JArray → E.Either String (EJsonF JS.Json)

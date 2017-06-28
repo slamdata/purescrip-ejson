@@ -10,6 +10,7 @@ import Data.Bifunctor as BF
 import Data.Eq (class Eq1)
 import Data.Foldable as F
 import Data.HugeNum as HN
+import Data.HugeInt as HI
 import Data.Json.Extended.Type as JT
 import Data.List as L
 import Data.Map as M
@@ -25,7 +26,7 @@ data EJsonF a
   = Null
   | String String
   | Boolean Boolean
-  | Integer Int
+  | Integer HI.HugeInt
   | Decimal HN.HugeNum
   | Array (Array a)
   | Map (EJsonMap a)

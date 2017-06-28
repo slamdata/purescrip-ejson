@@ -5,6 +5,7 @@ module Data.Json.Extended
   , boolean
   , integer
   , decimal
+  , number
   , string
   , map
   , map'
@@ -24,6 +25,7 @@ module Data.Json.Extended
   , _Boolean
   , _Integer
   , _Decimal
+  , _Number
   , _Array
   , _Map
   , _Map'
@@ -32,14 +34,15 @@ module Data.Json.Extended
 import Prelude hiding (map)
 
 import Control.Lazy as Lazy
-
 import Data.Argonaut as JS
 import Data.Bitraversable (bitraverse)
 import Data.Either as E
 import Data.Functor as F
 import Data.Functor.Mu as Mu
+import Data.HugeInt as HI
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
+import Data.Json.Extended.Signature hiding (getType) as Exports
 import Data.Json.Extended.Type (EJsonType)
 import Data.Lens (Prism', preview, prism')
 import Data.Map as Map
@@ -47,11 +50,9 @@ import Data.Maybe as M
 import Data.StrMap as SM
 import Data.Traversable (for)
 import Data.Tuple as T
-import Data.Json.Extended.Signature hiding (getType) as Exports
-
 import Matryoshka (class Corecursive, class Recursive, anaM, cata, embed, project)
-
-import Test.StrongCheck.Gen as Gen
+import Control.Monad.Gen (class MonadGen)
+import Control.Monad.Rec.Class (class MonadRec)
 import Text.Parsing.Parser as P
 
 type EJson = Mu.Mu Sig.EJsonF
@@ -62,7 +63,13 @@ decodeEJson = anaM Sig.decodeJsonEJsonF
 encodeEJson ∷ ∀ t. Recursive t Sig.EJsonF ⇒ t → JS.Json
 encodeEJson = cata Sig.encodeJsonEJsonF
 
-arbitraryEJsonOfSize ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Gen.Size → Gen.Gen t
+arbitraryEJsonOfSize
+  ∷ ∀ m t
+  . MonadGen m
+  ⇒ MonadRec m
+  ⇒ Corecursive t Sig.EJsonF
+  ⇒ Int
+  → m t
 arbitraryEJsonOfSize = anaM Sig.arbitraryEJsonF
 
 renderEJson ∷ ∀ t. Recursive t Sig.EJsonF ⇒ t → String
@@ -78,11 +85,14 @@ null = embed Sig.Null
 boolean ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Boolean → t
 boolean = embed <<< Sig.Boolean
 
-integer ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Int → t
+integer ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ HI.HugeInt → t
 integer = embed <<< Sig.Integer
 
 decimal ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ HN.HugeNum → t
 decimal = embed <<< Sig.Decimal
+
+number ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ E.Either HI.HugeInt HN.HugeNum → t
+number = embed <<< E.either Sig.Integer Sig.Decimal
 
 string ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ String → t
 string = embed <<< Sig.String
@@ -116,7 +126,7 @@ _Boolean = prism' boolean $ project >>> case _ of
   Sig.Boolean b → M.Just b
   _ → M.Nothing
 
-_Integer ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t Int
+_Integer ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t HI.HugeInt
 _Integer = prism' integer $ project >>> case _ of
   Sig.Integer i → M.Just i
   _ → M.Nothing
@@ -124,6 +134,12 @@ _Integer = prism' integer $ project >>> case _ of
 _Decimal ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t HN.HugeNum
 _Decimal = prism' decimal $ project >>> case _ of
   Sig.Decimal d → M.Just d
+  _ → M.Nothing
+
+_Number ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t (E.Either HI.HugeInt HN.HugeNum)
+_Number = prism' number $ project >>> case _ of
+  Sig.Integer i → M.Just (E.Left i)
+  Sig.Decimal d → M.Just (E.Right d)
   _ → M.Nothing
 
 _Array ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t (Array t)
