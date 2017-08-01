@@ -4,39 +4,36 @@ module Data.Json.Extended.Signature.Render
 
 import Prelude
 
-import Data.Either (fromRight)
 import Data.Foldable as F
 import Data.HugeInt as HI
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
-import Data.Maybe (fromMaybe)
 import Data.String as Str
-import Data.String.Regex as RX
-import Data.String.Regex.Flags as RXF
 import Data.Tuple as T
 import Matryoshka (Algebra)
-import Partial.Unsafe (unsafePartial)
 
 renderEJsonF ∷ Algebra EJsonF String
 renderEJsonF = case _ of
   Null → "null"
   Boolean b → if b then "true" else "false"
-  Integer i →
-    let s = HN.toString (HI.toHugeNum i)
-    in fromMaybe s $ Str.stripSuffix (Str.Pattern ".0") s
+  Integer i → Str.takeWhile (_ /= '.') $ HN.toString $ HI.toHugeNum i
   Decimal a → HN.toString a
   String str → stringEJson str
   Array ds → squares $ commaSep ds
   Map (EJsonMap ds) → braces $ renderPairs ds
 
-replaceAll ∷ String → String → String → String
-replaceAll i =
-  RX.replace $ unsafePartial fromRight $ RX.regex i RXF.global
-
   -- | Surround text in double quotes, escaping internal double quotes.
 stringEJson ∷ String → String
 stringEJson str =
-  "\"" <> replaceAll "\"" "\\\"" str <> "\""
+  "\"" <> escaped <> "\""
+  where
+  escaped =
+    str
+      # Str.replaceAll (Str.Pattern "\\") (Str.Replacement "\\\\")
+      # Str.replaceAll (Str.Pattern "\t") (Str.Replacement "\\t")
+      # Str.replaceAll (Str.Pattern "\r") (Str.Replacement "\\r")
+      # Str.replaceAll (Str.Pattern "\n") (Str.Replacement "\\n")
+      # Str.replaceAll (Str.Pattern "\"") (Str.Replacement "\\\"")
 
 commaSep ∷ Array String → String
 commaSep = F.intercalate ", "
