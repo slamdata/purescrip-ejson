@@ -15,6 +15,7 @@ import Prelude
 import Control.Alt ((<|>))
 
 import Data.Array as A
+import Data.Char as Char
 import Data.Foldable as F
 import Data.HugeNum as HN
 import Data.HugeInt as HI
@@ -23,11 +24,13 @@ import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.List as L
 import Data.Maybe as M
 import Data.String as S
+import Data.Traversable (sequence)
 import Data.Tuple as T
 
 import Text.Parsing.Parser as P
 import Text.Parsing.Parser.Combinators as PC
 import Text.Parsing.Parser.String as PS
+import Text.Parsing.Parser.Token as PT
 
 squares
   ∷ ∀ m a
@@ -64,11 +67,29 @@ commaSep p = do
   pure o
 
 stringInner ∷ ∀ m . Monad m ⇒ P.ParserT String m String
-stringInner = A.many stringChar <#> S.fromCharArray
+stringInner = A.many charAtom <#> S.fromCharArray
   where
-  stringChar = PC.try stringEscape <|> stringLetter
-  stringLetter = PS.satisfy (_ /= '"')
-  stringEscape = PS.string "\\\"" $> '"'
+  charAtom = PC.tryRethrow do
+    ch ← PS.anyChar
+    case ch of
+      '"'  → P.fail "Expected string character"
+      '\\' → charEscape
+      _    → pure ch
+
+  charEscape = do
+    ch ← PS.anyChar
+    case ch of
+      't' → pure '\t'
+      'r' → pure '\r'
+      'n' → pure '\n'
+      'u' → hexEscape
+      _   → pure ch
+
+  hexEscape = do
+    hex ← S.fromCharArray <$> sequence (A.replicate 4 PT.hexDigit)
+    case Int.fromStringAs Int.hexadecimal hex of
+      M.Nothing → P.fail "Expected character escape sequence"
+      M.Just i → pure $ Char.fromCharCode i
 
 quoted ∷ ∀ a m. Monad m ⇒ P.ParserT String m a → P.ParserT String m a
 quoted = PC.between quote quote
@@ -185,10 +206,20 @@ parseHugeNum
   . Monad m
   ⇒ P.ParserT String m HN.HugeNum
 parseHugeNum = do
-  chars ← A.many (PS.oneOf ['0','1','2','3','4','5','6','7','8','9','-','.']) <#> S.fromCharArray
-  case HN.fromString chars of
+  head ← parseDigits
+  _ ← PS.char '.'
+  str ← PC.tryRethrow do
+    tail ← parseDigits
+    when (tail == "") do
+      P.fail "Expected decimal part"
+    pure (head <> "." <> tail)
+  case HN.fromString str of
     M.Just num → pure num
-    M.Nothing → P.fail $ "Failed to parse decimal: " <> chars
+    M.Nothing → P.fail $ "Failed to parse decimal: " <> str
+  where
+  parseDigits =
+    S.fromCharArray
+      <$> A.many (PS.oneOf ['0','1','2','3','4','5','6','7','8','9'])
 
 parseScientific
   ∷ ∀ m
@@ -208,7 +239,7 @@ parseBooleanLiteral =
     ]
 
 parseDecimalLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m HN.HugeNum
-parseDecimalLiteral = parseHugeNum <|> parseScientific
+parseDecimalLiteral = parseSigned (parseHugeNum <|> parseScientific)
 
 parseHugeIntLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m HI.HugeInt
 parseHugeIntLiteral = parseSigned (parseNat (HI.fromInt 10) HI.fromInt)
