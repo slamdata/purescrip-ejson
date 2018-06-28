@@ -9,12 +9,11 @@ import Prelude
 import Data.Bifunctor as BF
 import Data.Eq (class Eq1)
 import Data.Foldable as F
-import Data.HugeNum as HN
 import Data.HugeInt as HI
+import Data.HugeNum as HN
 import Data.Json.Extended.Type as JT
 import Data.List as L
 import Data.Map as M
-import Data.Monoid (mempty)
 import Data.Newtype (class Newtype)
 import Data.Ord (class Ord1)
 import Data.TacitString (TacitString)

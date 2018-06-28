@@ -10,7 +10,6 @@ import Data.Functor.Mu (Mu)
 import Data.Json.Extended (EJson)
 import Data.Json.Extended as EJ
 import Data.Maybe (Maybe(..), maybe)
-import Data.Monoid (mempty)
 import Data.Ord (class Ord1)
 import Data.TacitString (TacitString)
 import Data.Traversable (class Traversable, traverse)
@@ -48,12 +47,8 @@ data CursorF a
 derive instance functorCursorF ∷ Functor CursorF
 derive instance eqCursor ∷ Eq a ⇒ Eq (CursorF a)
 derive instance ordCursor ∷ Ord a ⇒ Ord (CursorF a)
-
-instance eq1CursorF ∷ Eq1 CursorF where
-  eq1 = eq
-
-instance ord1CursorF ∷ Ord1 CursorF where
-  compare1 = compare
+derive instance eq1CursorF ∷ Eq1 CursorF
+derive instance ord1CursorF ∷ Ord1 CursorF
 
 instance showCursorF ∷ Show (CursorF TacitString) where
   show = case _ of
@@ -80,7 +75,7 @@ instance traversableCursorF :: Traversable CursorF where
     All -> pure All
     AtKey k a -> AtKey k <$> f a
     AtIndex i a -> AtIndex i <$> f a
-  sequence = traverse id
+  sequence = traverse identity
 
 renderEJsonCursor ∷ Cursor → String
 renderEJsonCursor = show

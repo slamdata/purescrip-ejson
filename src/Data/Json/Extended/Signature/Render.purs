@@ -8,7 +8,9 @@ import Data.Foldable as F
 import Data.HugeInt as HI
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
-import Data.String as Str
+import Data.String.Pattern (Pattern(..), Replacement(..)) as Str
+import Data.String.Common (replaceAll) as Str
+import Data.String.CodeUnits (takeWhile) as Str
 import Data.Tuple as T
 import Matryoshka (Algebra)
 
