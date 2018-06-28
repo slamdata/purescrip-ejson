@@ -23,10 +23,9 @@ import Data.Int as Int
 import Data.Json.Extended.Signature.Core (EJsonF(..), EJsonMap(..))
 import Data.List as L
 import Data.Maybe as M
-import Data.String as S
+import Data.String.CodeUnits as SCU
 import Data.Traversable (sequence)
 import Data.Tuple as T
-
 import Text.Parsing.Parser as P
 import Text.Parsing.Parser.Combinators as PC
 import Text.Parsing.Parser.String as PS
@@ -67,7 +66,7 @@ commaSep p = do
   pure o
 
 stringInner ∷ ∀ m . Monad m ⇒ P.ParserT String m String
-stringInner = A.many charAtom <#> S.fromCharArray
+stringInner = A.many charAtom <#> SCU.fromCharArray
   where
   charAtom = PC.tryRethrow do
     ch ← PS.anyChar
@@ -86,10 +85,10 @@ stringInner = A.many charAtom <#> S.fromCharArray
       _   → pure ch
 
   hexEscape = do
-    hex ← S.fromCharArray <$> sequence (A.replicate 4 PT.hexDigit)
-    case Int.fromStringAs Int.hexadecimal hex of
+    hex ← SCU.fromCharArray <$> sequence (A.replicate 4 PT.hexDigit)
+    case Int.fromStringAs Int.hexadecimal hex >>= Char.fromCharCode of
       M.Nothing → P.fail "Expected character escape sequence"
-      M.Just i → pure $ Char.fromCharCode i
+      M.Just i → pure i
 
 quoted ∷ ∀ a m. Monad m ⇒ P.ParserT String m a → P.ParserT String m a
 quoted = PC.between quote quote
@@ -218,7 +217,7 @@ parseHugeNum = do
     M.Nothing → P.fail $ "Failed to parse decimal: " <> str
   where
   parseDigits =
-    S.fromCharArray
+    SCU.fromCharArray
       <$> A.many (PS.oneOf ['0','1','2','3','4','5','6','7','8','9'])
 
 parseScientific
@@ -245,7 +244,7 @@ parseHugeIntLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m HI.HugeInt
 parseHugeIntLiteral = parseSigned (parseNat (HI.fromInt 10) HI.fromInt)
 
 parseIntLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
-parseIntLiteral = parseSigned (parseNat 10 id)
+parseIntLiteral = parseSigned (parseNat 10 identity)
 
 parseStringLiteral ∷ ∀ m. Monad m ⇒ P.ParserT String m String
 parseStringLiteral = quoted stringInner

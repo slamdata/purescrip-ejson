@@ -8,18 +8,11 @@ module Data.Json.Extended
   , number
   , string
   , map
-  , map'
   , array
-
   , renderEJson
   , parseEJson
-  , decodeEJson
-  , encodeEJson
-
   , arbitraryEJsonOfSize
-
   , getType
-
   , _Null
   , _String
   , _Boolean
@@ -28,40 +21,27 @@ module Data.Json.Extended
   , _Number
   , _Array
   , _Map
-  , _Map'
   ) where
 
 import Prelude hiding (map)
 
 import Control.Lazy as Lazy
-import Data.Argonaut as JS
-import Data.Bitraversable (bitraverse)
+import Control.Monad.Gen (class MonadGen)
+import Control.Monad.Rec.Class (class MonadRec)
 import Data.Either as E
-import Data.Functor as F
 import Data.Functor.Mu as Mu
 import Data.HugeInt as HI
 import Data.HugeNum as HN
 import Data.Json.Extended.Signature as Sig
 import Data.Json.Extended.Signature hiding (getType) as Exports
 import Data.Json.Extended.Type (EJsonType)
-import Data.Lens (Prism', preview, prism')
+import Data.Lens (Prism', prism')
 import Data.Map as Map
 import Data.Maybe as M
-import Data.StrMap as SM
-import Data.Traversable (for)
-import Data.Tuple as T
 import Matryoshka (class Corecursive, class Recursive, anaM, cata, embed, project)
-import Control.Monad.Gen (class MonadGen)
-import Control.Monad.Rec.Class (class MonadRec)
 import Text.Parsing.Parser as P
 
 type EJson = Mu.Mu Sig.EJsonF
-
-decodeEJson ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ JS.Json → E.Either String t
-decodeEJson = anaM Sig.decodeJsonEJsonF
-
-encodeEJson ∷ ∀ t. Recursive t Sig.EJsonF ⇒ t → JS.Json
-encodeEJson = cata Sig.encodeJsonEJsonF
 
 arbitraryEJsonOfSize
   ∷ ∀ m t
@@ -102,11 +82,6 @@ array = embed <<< Sig.Array
 
 map ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Map.Map t t → t
 map = embed <<< Sig.Map <<< Sig.EJsonMap <<< Map.toUnfoldable
-
-map' ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ SM.StrMap t → t
-map' = embed <<< Sig.Map <<< Sig.EJsonMap <<< F.map go <<< SM.toUnfoldable
-  where
-    go (T.Tuple a b) = T.Tuple (string a) b
 
 getType ∷ ∀ t. Recursive t Sig.EJsonF ⇒ t → EJsonType
 getType = Sig.getType <<< project
@@ -150,9 +125,4 @@ _Array = prism' array $ project >>> case _ of
 _Map ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Ord t ⇒ Prism' t (Map.Map t t)
 _Map = prism' map $ project >>> case _ of
   Sig.Map (Sig.EJsonMap kvs) → M.Just $ Map.fromFoldable kvs
-  _ → M.Nothing
-
-_Map' ∷ ∀ t. Corecursive t Sig.EJsonF ⇒ Recursive t Sig.EJsonF ⇒ Prism' t (SM.StrMap t)
-_Map' = prism' map' $ project >>> case _ of
-  Sig.Map (Sig.EJsonMap kvs) → SM.fromFoldable <$> for kvs (bitraverse (preview _String) pure)
   _ → M.Nothing
