@@ -20,11 +20,11 @@
     "purescript-bifunctors": "^4.0.0",
     "purescript-newtype": "^3.0.0",
     "purescript-parsing": "^5.0.1",
-    "purescript-precise": "^3.0.1",
-    "purescript-profunctor-lenses": "^4.0.0",
+    "purescript-precise": "^4.0.0",
+    "purescript-profunctor-lenses": "^6.0.0",
     "purescript-datetime": "^4.0.0"
   },
   "devDependencies": {
-    "purescript-quickcheck": "^5.0.0"
+    "purescript-quickcheck": "^6.0.0"
   }
 }
