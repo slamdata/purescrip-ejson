@@ -110,22 +110,6 @@ parseDigit =
     , 9 <$ PS.string "9"
     ]
 
-parse10 ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
-parse10 = (tens <$> parseDigit <*> parseDigit) <|> parseDigit
-  where
-  tens x y = x * 10 + y
-
-parse1000 ∷ ∀ m. Monad m ⇒ P.ParserT String m Int
-parse1000
-  = (thousands <$> parseDigit <*> parseDigit <*> parseDigit <*> parseDigit)
-  <|> (hundreds <$> parseDigit <*> parseDigit <*> parseDigit)
-  <|> (tens <$> parseDigit <*> parseDigit)
-  <|> parseDigit
-  where
-  thousands x y z w = x * 1000 + y * 100 + z * 10 + w
-  hundreds x y z = x * 100 + y * 10 + z
-  tens x y = x * 10 + y
-
 -- | This is used for parsing both `Int` and `HugeInt` values so has some extra
 -- | arguments. The `n` value should be 10 in the appropriate type, used to
 -- | move the place of each digit that is parsed. The `Int -> n` function

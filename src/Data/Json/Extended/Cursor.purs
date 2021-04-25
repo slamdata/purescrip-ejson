@@ -5,7 +5,7 @@ import Prelude
 import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Eq (class Eq1)
-import Data.Foldable (class Foldable)
+import Data.Foldable (class Foldable, lookup)
 import Data.Functor.Mu (Mu)
 import Data.Json.Extended (EJson)
 import Data.Json.Extended as EJ
@@ -13,8 +13,7 @@ import Data.Maybe (Maybe(..), maybe)
 import Data.Ord (class Ord1)
 import Data.TacitString (TacitString)
 import Data.Traversable (class Traversable, traverse)
-import Data.Tuple (Tuple(..), lookup)
-
+import Data.Tuple (Tuple(..))
 import Matryoshka (Algebra, cata, project, embed)
 
 -- | A cursor to a location in an EJson value.
