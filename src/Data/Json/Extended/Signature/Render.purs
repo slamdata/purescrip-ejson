@@ -43,9 +43,6 @@ commaSep = F.intercalate ", "
 renderPairs ∷ Array (T.Tuple String String) → String
 renderPairs = commaSep <<< map (\(T.Tuple k v) → k <> ": " <> v)
 
-parens ∷ String → String
-parens str = "(" <> str <> ")"
-
 squares ∷ String → String
 squares str = "[" <> str <> "]"
 
